@@ -170,7 +170,7 @@ const Views = {
 
     return `
       <div class="club-profile">
-        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-n · full</div>
+        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-p · full</div>
 
         <!-- Telegram-style profile card (coach/player) -->
         ${(() => {
@@ -198,9 +198,10 @@ const Views = {
               return '<span class="cp-gift-orb" style="transform:translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)" title="' + sanitize(g.label || '') + '">' + (g.ico || '★') + '</span>';
             }).join('') + '</div>') : ''}
           </div>
-          <h1 class="cp-title">${sanitize(pc.name)}</h1>
+          <div class="cp-role-line"><span class="cp-role-kind">${pc.kind === 'coach' ? 'Тренер' : 'Гравець'}</span></div>
+          <h1 class="cp-title cp-title-name">${sanitize(pc.name)}</h1>
           <div class="cp-role-badge" ${pc.kind === 'coach' ? 'data-action="coach-easter" role="button" title="Утримуйте 1с · картка тренера"' : ''} style="border-color:var(--pos-ring);color:var(--pos-ring);cursor:${pc.kind === 'coach' ? 'pointer' : 'default'}">${sanitize(pc.pos)}</div>
-          <div class="cp-club-line">${sanitize(club)}</div>
+          <div class="cp-club-line cp-club-brand"><span class="cp-brand-a">Металіст</span> <span class="cp-brand-b">Штутгарт</span></div>
           <div class="cp-status">
             <span class="cp-dot"></span>
             ${pc.kind === 'player'
@@ -608,9 +609,10 @@ const Views = {
             title="FIFA-картка" style="border-color:var(--pos-ring);background:var(--pos-bg)">
             ${photoHtml}
           </button>
-          <h1 class="cp-title">${sanitize(pc.name)}</h1>
+          <div class="cp-role-line"><span class="cp-role-kind">${pc.kind === 'coach' ? 'Тренер' : 'Гравець'}</span></div>
+          <h1 class="cp-title cp-title-name">${sanitize(pc.name)}</h1>
           <div class="cp-role-badge" style="border-color:var(--pos-ring);color:var(--pos-ring)">${sanitize(pc.pos)}</div>
-          <div class="cp-club-line">${sanitize(club)}</div>
+          <div class="cp-club-line cp-club-brand"><span class="cp-brand-a">Металіст</span> <span class="cp-brand-b">Штутгарт</span></div>
           <div class="cp-status"><span class="cp-dot"></span>Відвідуваність ${Math.round(pc.attPct)}% · тап по фото → FIFA</div>
         </div>` : this._noPlayerLink()}
 
@@ -652,6 +654,46 @@ const Views = {
         ).join('') : '<span class="note-sm">Немає схем</span>'}
         <button type="button" class="btn btn-p btn-sm" data-action="open-default-board" style="margin:4px">Дошка</button>
         </div>
+      </div>
+      ${this._coachPublicCard()}
+      `;
+  },
+
+  /** Публічна картка тренера — бачать усі (гравці/гості) */
+  _coachPublicCard() {
+    const s = Store.get();
+    const set = s.settings || {};
+    const name = set.coachName || 'Artem Serdiuk';
+    const photo = set.coachPhoto || '';
+    const cs = set.coachStats || { appMs: 0, boardMs: 0 };
+    const todayStr = (typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10));
+    const past = (s.trainings || []).filter(t => t.status === 'done' || ((t.date || '') < todayStr && t.status !== 'draft' && t.status !== 'cancelled'));
+    let attP = 0, attT = 0;
+    past.forEach(t => {
+      Object.values(t.attendance || {}).forEach(a => {
+        attT++;
+        if (a && a.present !== false) attP++;
+      });
+    });
+    const attPct = attT ? Math.round(attP / attT * 100) : 0;
+    const appT = (typeof App !== 'undefined' && App.formatDurationMs) ? App.formatDurationMs(cs.appMs || 0) : '—';
+    const boardT = (typeof App !== 'undefined' && App.formatDurationMs) ? App.formatDurationMs(cs.boardMs || 0) : '—';
+    const ph = photo
+      ? '<img src="' + sanitize(photo) + '" alt="" referrerpolicy="no-referrer"/>'
+      : '<span class="cp-avatar-ph">AS</span>';
+    return `
+      <div class="card glass coach-public-card">
+        <div class="ct">Головний тренер</div>
+        <button type="button" class="coach-pub-row" data-action="coach-easter">
+          <div class="coach-pub-av">${ph}</div>
+          <div class="coach-pub-body">
+            <div class="coach-pub-name">${sanitize(name)}</div>
+            <div class="coach-pub-meta">Тренувань: ${past.length} · Відвідуваність команди ${attPct}%</div>
+            <div class="coach-pub-meta">У додатку: ${appT} · На дошці: ${boardT}</div>
+          </div>
+          <span class="tg-row-chevron">›</span>
+        </button>
+        <p class="note-sm">Тап — золота картка тренера зі статистикою</p>
       </div>`;
   },
 
@@ -768,8 +810,12 @@ const Views = {
         ? t.structure.map(b => sanitize(b.title || b.name) + '(' + b.duration + 'хв)').join(' → ') + ' = ' + total + 'хв'
         : '';
       const cancelled = t.status === 'cancelled' || t.status === 'canceled';
-      return `<div class="tg-row card-training${cancelled ? ' is-cancelled' : ''}"
+      const isDone = t.status === 'done';
+      const isPlanned = t.status === 'planned' || (!t.status && !cancelled);
+      const statusCls = cancelled ? ' is-cancelled' : (isDone ? ' is-done' : (isPlanned ? ' is-planned' : ''));
+      return `<div class="tg-row card-training${statusCls}"
           data-training-id="${t.id}"
+          data-tr-status="${sanitize(t.status || '')}"
           role="button" tabindex="0"
           aria-label="${sanitize(t.name)}">
         <div class="tg-row-main">
@@ -884,7 +930,9 @@ const Views = {
       const role = roleLabel(p);
       const st = p.status || 'available';
       const inj = (st === 'injured' || st === 'rehab' || st === 'recovery');
-      return `<div class="pl-row tg-row${inj ? ' is-injured' : ''}${!isStarter(p) ? ' is-reserve' : ''}"
+      const isMe = (typeof AuthManager !== 'undefined' && AuthManager.isLinkedPlayer && AuthManager.isLinkedPlayer(p))
+        || (typeof AuthManager !== 'undefined' && AuthManager.matchesPlayer && AuthManager.matchesPlayer(p));
+      return `<div class="pl-row tg-row${inj ? ' is-injured' : ''}${!isStarter(p) ? ' is-reserve' : ''}${isMe ? ' is-me' : ''}"
         data-player-id="${p.id}" data-player-row="${p.id}" data-action="open-player-card">
         <span class="pl-num">#${p.number || '—'}</span>
         <span class="pl-name">${sanitize(p.lastName || '')} ${sanitize((p.firstName || '')[0] || '')}.</span>
@@ -909,7 +957,9 @@ const Views = {
         const ph = photo
           ? '<img src="' + sanitize(photo) + '" alt="" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'"/>'
           : '<span class="cp-avatar-ph">' + sanitize(initials) + '</span>';
-        return '<div class="pl-card glass" data-player-id="' + p.id + '" data-action="open-player-card" role="button" tabindex="0">' +
+        const isMe = (typeof AuthManager !== 'undefined' && AuthManager.isLinkedPlayer && AuthManager.isLinkedPlayer(p))
+          || (typeof AuthManager !== 'undefined' && AuthManager.matchesPlayer && AuthManager.matchesPlayer(p));
+        return '<div class="pl-card glass' + (isMe ? ' is-me' : '') + '" data-player-id="' + p.id + '" data-action="open-player-card" role="button" tabindex="0">' +
           '<div class="pl-card-av" style="border-color:' + acc.ring + ';background:' + acc.bg + '">' + ph + '</div>' +
           '<div class="pl-card-body">' +
           '<div class="pl-card-name">#' + (p.number || '—') + ' ' + sanitize(name) + '</div>' +
@@ -1236,6 +1286,12 @@ const Views = {
         <div class="ct">Клуб</div>
         <div class="fgr"><label>Назва клубу</label><input id="setClubName" value="${sanitize(s.clubName || '')}"/></div>
         <div class="fgr"><label>Скорочення</label><input id="setClubShort" value="${sanitize(s.clubShort || '')}"/></div>
+        <div class="fgr"><label>Імʼя тренера</label><input id="setCoachName" value="${sanitize(s.coachName || 'Artem Serdiuk')}"/></div>
+        <div class="fgr full"><label>Фото тренера (URL або файл)</label>
+          <input id="setCoachPhoto" type="url" placeholder="https://… або файл нижче" value="${(s.coachPhoto||'').indexOf('data:')===0 ? '' : sanitize(s.coachPhoto || '')}"/>
+          <input id="setCoachPhotoFile" type="file" accept="image/*" style="margin-top:6px;font-size:12px"/>
+          ${s.coachPhoto ? '<img src="'+sanitize(s.coachPhoto)+'" alt="" style="max-height:64px;margin-top:6px;border-radius:8px">' : ''}
+        </div>
         <div class="fgr"><label>Колір основний</label><input id="setPrimary" type="color" value="${pri}"/></div>
         <div class="fgr"><label>Колір акцент</label><input id="setAccent" type="color" value="${acc}"/></div>
         <div class="fgr"><label>Тема</label>
@@ -1271,7 +1327,7 @@ const Views = {
       <div class="card"><div class="ct">Про застосунок</div>
         <p style="font-size:12px;color:var(--muted);line-height:1.6">
           Тренерська платформа · МЕТАЛІСТ ШТУТГАРТ<br>
-          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-n<br>
+          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-p<br>
           localStorage · Telegram Cloud
         </p>
       </div>`;

@@ -214,6 +214,23 @@ const AuthManager = {
     }
   },
 
+  /** Чи цей запис гравця — поточний акаунт (підсвітка «я») */
+  isLinkedPlayer(p) {
+    if (!p) return false;
+    if (this.linkedPlayerId && p.id === this.linkedPlayerId) return true;
+    return this.matchesPlayer(p);
+  },
+  matchesPlayer(p) {
+    if (!p || !this.user) return false;
+    try {
+      if (p.telegramId && String(p.telegramId) === String(this.user.id)) return true;
+      const uname = this._normNick(this.user.username);
+      const pug = this._normNick(p.telegramUsername);
+      if (uname && pug && uname === pug) return true;
+    } catch (_) {}
+    return false;
+  },
+
   can(action) {
     if (this.role === 'coach') return true;
 

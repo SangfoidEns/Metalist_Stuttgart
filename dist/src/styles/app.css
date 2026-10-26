@@ -7208,3 +7208,74 @@ body.board-on:not(.mode-board-focus) > #btbToolsTray {
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
+/* ===== 2026.10.24-p photo / coach / branding / status ===== */
+.cp-club-brand { font-size: 15px; font-weight: 700; letter-spacing: 0.02em; }
+.cp-brand-a { color: #f0c14b !important; } /* Металіст — жовтий */
+.cp-brand-b { color: #ffffff !important; } /* Штутгарт — білий */
+.cp-role-line { margin-top: 6px; }
+.cp-role-kind { color: #ffffff !important; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.9; }
+.cp-title-name { color: #f0c14b !important; }
+
+.card-training.is-planned {
+  border-left: 3px solid #4fc3f7 !important;
+  background: rgba(79, 195, 247, 0.06);
+}
+.card-training.is-done {
+  border-left: 3px solid #81c784 !important;
+  background: rgba(129, 199, 132, 0.08);
+}
+.card-training.is-cancelled {
+  border-left: 3px solid #e57373 !important;
+  opacity: 0.72;
+}
+
+.pl-row.is-me,
+.pl-card.is-me,
+.tg-row.is-me {
+  outline: 2px solid var(--club-accent, #c8a84b);
+  outline-offset: 1px;
+  background: rgba(200, 168, 75, 0.12) !important;
+  box-shadow: 0 0 0 1px rgba(200, 168, 75, 0.35);
+}
+.pl-row.is-me::after,
+.pl-card.is-me::after {
+  content: "ви";
+  position: absolute;
+  top: 6px; right: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #f0c14b;
+  text-transform: uppercase;
+}
+.pl-row, .pl-card { position: relative; }
+
+.coach-public-card .coach-pub-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.coach-pub-av {
+  width: 52px; height: 52px; border-radius: 50%;
+  overflow: hidden; border: 2px solid #c8a84b;
+  background: linear-gradient(145deg, #3a2a0a, #1a1205);
+  display: grid; place-items: center; flex-shrink: 0;
+}
+.coach-pub-av img { width: 100%; height: 100%; object-fit: cover; }
+.coach-pub-name { font-weight: 700; color: #f0c14b; }
+.coach-pub-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.coach-card-fifa .cc-stats {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 6px !important;
+}
+.coach-card-fifa .cc-stat span { font-size: 9px !important; }
+.coach-card-fifa .cc-stat b { font-size: 12px !important; }

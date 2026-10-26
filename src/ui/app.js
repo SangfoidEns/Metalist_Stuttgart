@@ -309,18 +309,14 @@ const App = {
   },
 
   openCoachCard() {
-    const name = (typeof AuthManager !== 'undefined' && AuthManager.displayName)
-      ? AuthManager.displayName() : 'Artem Serdiuk';
-    // Priority: settings coach photo → Telegram user photo → linked player photo
-    let photo = '';
+    const s = (typeof Store !== 'undefined' && Store.get()) || {};
+    const set = s.settings || {};
+    const name = set.coachName
+      || ((typeof AuthManager !== 'undefined' && AuthManager.displayName) ? AuthManager.displayName() : 'Artem Serdiuk');
+    let photo = set.coachPhoto || '';
     try {
-      const st = (typeof Store !== 'undefined' && Store.get()) || {};
-      photo = st.coachPhoto || (st.settings && st.settings.coachPhoto) || '';
       if (!photo && typeof AuthManager !== 'undefined' && AuthManager.user) {
         photo = AuthManager.user.photo_url || AuthManager.user.photoUrl || '';
-      }
-      if (!photo && typeof TelegramManager !== 'undefined' && TelegramManager.getUserPhotoUrl) {
-        photo = TelegramManager.getUserPhotoUrl() || '';
       }
       if (!photo && typeof TelegramManager !== 'undefined' && TelegramManager.tg) {
         const u = TelegramManager.tg.initDataUnsafe && TelegramManager.tg.initDataUnsafe.user;
@@ -331,6 +327,28 @@ const App = {
     const photoHtml = photo
       ? '<img src="'+String(photo).replace(/"/g,'&quot;')+'" alt="" referrerpolicy="no-referrer" onerror="this.style.display=\'none\';this.nextElementSibling&&(this.nextElementSibling.style.display=\'grid\')"/><div class="cc-photo-ph" style="display:none">'+initials+'</div>'
       : '<div class="cc-photo-ph">'+initials+'</div>';
+
+    // Real coach stats
+    const todayStr = (typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10));
+    const trs = s.trainings || [];
+    const past = trs.filter(t => t.status === 'done' || ((t.date || '') < todayStr && t.status !== 'cancelled' && t.status !== 'canceled' && t.status !== 'draft'));
+    const planned = trs.filter(t => t.status === 'planned' || ((t.date || '') >= todayStr && t.status !== 'draft' && t.status !== 'cancelled'));
+    const totalMin = past.reduce((a, t) => a + (t.duration || 0), 0);
+    let attPresent = 0, attTotal = 0;
+    past.forEach(t => {
+      const att = t.attendance || {};
+      Object.keys(att).forEach(pid => {
+        attTotal++;
+        if (att[pid] && att[pid].present !== false) attPresent++;
+      });
+    });
+    const attPct = attTotal ? Math.round(attPresent / attTotal * 100) : 0;
+    const cs = set.coachStats || { appMs: 0, boardMs: 0 };
+    const appTime = (typeof App !== 'undefined' && App.formatDurationMs) ? App.formatDurationMs(cs.appMs || 0) : '—';
+    const boardTime = (typeof App !== 'undefined' && App.formatDurationMs) ? App.formatDurationMs(cs.boardMs || 0) : '—';
+    const boardsN = (s.boards || []).length;
+    const playersN = (s.players || []).length;
+
     document.querySelectorAll('.coach-card-overlay').forEach(el => el.remove());
     const ov = document.createElement('div');
     ov.className = 'coach-card-overlay';
@@ -338,23 +356,27 @@ const App = {
       <div class="coach-card-fifa" role="dialog" aria-label="Картка тренера">
         <div class="cc-glow"></div>
         <div class="cc-frame">
-          <div class="cc-rating">94</div>
+          <div class="cc-rating">${Math.min(99, 70 + Math.min(29, past.length))}</div>
           <div class="cc-pos">HEAD COACH</div>
           <div class="cc-photo">${photoHtml}</div>
           <div class="cc-club">METALIST STUTTGART</div>
           <div class="cc-name">${(typeof sanitize==='function'?sanitize(name):name).toUpperCase()}</div>
           <div class="cc-stats">
-            <div class="cc-stat"><span>Leadership</span><b>96</b></div>
-            <div class="cc-stat"><span>Tactics</span><b>95</b></div>
-            <div class="cc-stat"><span>Motivation</span><b>94</b></div>
-            <div class="cc-stat"><span>Mentality</span><b>93</b></div>
+            <div class="cc-stat"><span>Тренувань</span><b>${past.length}</b></div>
+            <div class="cc-stat"><span>План</span><b>${planned.length}</b></div>
+            <div class="cc-stat"><span>Хв сесій</span><b>${totalMin}</b></div>
+            <div class="cc-stat"><span>Відвідув.</span><b>${attPct}%</b></div>
+            <div class="cc-stat"><span>У додатку</span><b>${appTime}</b></div>
+            <div class="cc-stat"><span>На дошці</span><b>${boardTime}</b></div>
+            <div class="cc-stat"><span>Схеми</span><b>${boardsN}</b></div>
+            <div class="cc-stat"><span>Склад</span><b>${playersN}</b></div>
           </div>
           <div class="cc-traits">
-            <span>★ Master Tactician</span>
-            <span>◆ Player Developer</span>
-            <span>◆ Winning Mentality</span>
+            <span>★ Головний тренер</span>
+            <span>◆ Тактика</span>
+            <span>◆ Розвиток гравців</span>
           </div>
-          <button type="button" class="cc-back" data-action="close-coach-card">Повернутися до керування</button>
+          <button type="button" class="cc-back" data-action="close-coach-card">Повернутися</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -1002,6 +1024,39 @@ const App = {
       try { TelegramManager.haptic && TelegramManager.haptic('success'); } catch (_) {}
     } catch (_) {}
   },
+  /* ── Облік часу в додатку / на дошці (для картки тренера) ── */
+  _usageTimer: null,
+  startUsageTracker() {
+    if (this._usageTimer) return;
+    const tick = () => {
+      try {
+        const s = Store.get();
+        if (!s) return;
+        s.settings = s.settings || {};
+        const st = s.settings.coachStats || { appMs: 0, boardMs: 0 };
+        st.appMs = (st.appMs || 0) + 15000;
+        const view = (s.ui && s.ui.view) || '';
+        if (view === 'board') st.boardMs = (st.boardMs || 0) + 15000;
+        st.updatedAt = new Date().toISOString();
+        s.settings.coachStats = st;
+        // тихе збереження раз на ~2 хв
+        if (!this._usageSaveAt || Date.now() - this._usageSaveAt > 120000) {
+          this._usageSaveAt = Date.now();
+          try { StorageManager.save(); } catch (_) {}
+        }
+      } catch (_) {}
+    };
+    this._usageTimer = setInterval(tick, 15000);
+    // first soft tick after 15s
+  },
+  formatDurationMs(ms) {
+    ms = Math.max(0, Number(ms) || 0);
+    const totalMin = Math.floor(ms / 60000);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    if (h <= 0) return m + ' хв';
+    return h + ' год ' + m + ' хв';
+  },
   syncRoleClass() {
     try {
       document.body.classList.remove('role-coach', 'role-player', 'role-guest');
@@ -1013,6 +1068,7 @@ const App = {
     } catch (_) {}
   },
   renderCurrent() {
+    try { this.startUsageTracker(); } catch (_) {}
     try { this.syncRoleClass(); } catch (_) {}
     try { if (!this._bdayChecked) { this._bdayChecked = true; this.checkBirthdays(); } } catch (_) {}
     try { this.updateTrainingCountdown(); } catch (_) {}
