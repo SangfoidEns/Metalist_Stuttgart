@@ -7598,3 +7598,140 @@ body.board-on:not(.mode-board-focus) > #btbToolsTray {
 .cp-hero.cp-person { overflow: visible !important; }
 .pl-card { overflow: visible !important; }
 .pl-cards { overflow: visible !important; }
+
+/* ═══ NFT Artifacts (Telegram Gifts style) ═══ */
+.tg-gift-item.nft-art {
+  width: 34px !important;
+  height: 34px !important;
+  margin: -17px 0 0 -17px !important;
+  border-radius: 12px !important;
+  background:
+    radial-gradient(circle at 30% 25%, hsla(var(--art-hue, 42), 90%, 70%, 0.55), transparent 55%),
+    linear-gradient(145deg, hsla(var(--art-hue, 42), 70%, 28%, 0.95), rgba(12, 14, 20, 0.95)) !important;
+  border: 1.5px solid hsla(var(--art-hue, 42), 80%, 55%, 0.65) !important;
+  box-shadow:
+    0 4px 14px rgba(0,0,0,0.45),
+    0 0 12px hsla(var(--art-hue, 42), 90%, 50%, 0.25) !important;
+  overflow: hidden;
+}
+.tg-gift-item.nft-art::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-conic-gradient(from calc(var(--art-pattern, 0) * 30deg),
+      transparent 0 12deg,
+      hsla(var(--art-hue, 42), 80%, 70%, 0.08) 12deg 18deg);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.nft-art-ico { position: relative; z-index: 1; font-size: 16px; }
+.rarity-common { --art-hue: 200; }
+.rarity-rare { filter: saturate(1.15); }
+.rarity-epic {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.45), 0 0 18px hsla(var(--art-hue, 280), 90%, 55%, 0.4) !important;
+}
+.rarity-legendary {
+  border-color: hsla(42, 95%, 60%, 0.9) !important;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.5), 0 0 22px rgba(240, 193, 75, 0.45) !important;
+  animation: tgGiftFloat 3.4s ease-in-out infinite, nftShine 2.8s ease-in-out infinite !important;
+}
+@keyframes nftShine {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.2) saturate(1.15); }
+}
+
+.fifa-gift-chip.nft-chip {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 10px;
+  background: linear-gradient(145deg, hsla(var(--art-hue, 42), 50%, 22%, 0.9), rgba(12,14,20,0.9));
+  border-color: hsla(var(--art-hue, 42), 70%, 50%, 0.5);
+}
+.fifa-gift-chip.nft-chip small {
+  font-size: 10px;
+  opacity: 0.75;
+  font-weight: 600;
+}
+.gift-status-badge.rarity-legendary {
+  background: rgba(240,193,75,0.22);
+  border-color: rgba(240,193,75,0.7);
+}
+.gift-status-badge.rarity-epic {
+  background: rgba(155,89,182,0.2);
+  border-color: rgba(155,89,182,0.55);
+}
+
+.gift-award-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 64px;
+  border-radius: 14px;
+  border: 1px solid hsla(var(--art-hue, 42), 60%, 50%, 0.35);
+  background: linear-gradient(160deg, hsla(var(--art-hue, 42), 40%, 18%, 0.9), rgba(16,18,24,0.95));
+}
+.gift-award-btn .gift-aw-rar {
+  font-size: 10px;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.gift-award-btn.rarity-legendary {
+  border-color: rgba(240,193,75,0.65);
+  box-shadow: 0 0 14px rgba(240,193,75,0.2);
+}
+
+.compare-result-host { margin-top: 12px; }
+.compare-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 12px;
+}
+.compare-select {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 12px;
+  background: #12161e !important;
+  color: #f2f5f8 !important;
+  border: 1px solid rgba(240,193,75,0.35);
+  font-size: 15px;
+  padding: 8px 12px;
+}
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.compare-col {
+  background: rgba(0,0,0,0.22);
+  border-radius: 12px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.compare-name {
+  font-weight: 800;
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: #f0c14b;
+}
+
+.artifact-catalog-list { display: flex; flex-direction: column; gap: 8px; max-height: min(60vh, 480px); overflow: auto; }
+.artifact-cat-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 10px 12px; border-radius: 14px;
+  background: linear-gradient(145deg, hsla(var(--art-hue, 42), 40%, 18%, 0.85), rgba(14,16,22,0.95));
+  border: 1px solid hsla(var(--art-hue, 42), 60%, 50%, 0.35);
+}
+.artifact-cat-row .ico { font-size: 28px; line-height: 1; }
+.artifact-cat-row b { font-size: 14px; }
+#artifactJsonInput {
+  width: 100%; min-height: 120px; border-radius: 12px;
+  background: #12161e; color: #f2f5f8; border: 1px solid rgba(255,255,255,0.12);
+  font-family: ui-monospace, monospace; font-size: 12px; padding: 10px;
+}

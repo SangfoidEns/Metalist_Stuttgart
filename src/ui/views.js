@@ -80,12 +80,11 @@ const Views = {
   },
 
 
-  /** Telegram-style gift cloud: irregular slots around avatar, float animation */
+  /** Telegram NFT-style artifacts around avatar */
   _tgGiftCloud(gifts, radiusScale) {
     const list = (gifts || []).filter(g => g && g.attached !== false).slice(0, 8);
     if (!list.length) return '';
     const sc = radiusScale != null ? radiusScale : 1;
-    // Irregular Telegram-like positions (not a perfect circle)
     const slots = [
       { x: -56, y: -22 }, { x: 58, y: -18 }, { x: -50, y: 38 },
       { x: 54, y: 42 }, { x: -18, y: -56 }, { x: 24, y: -58 },
@@ -95,18 +94,25 @@ const Views = {
       const s = slots[i % slots.length];
       const x = (s.x * sc).toFixed(1);
       const y = (s.y * sc).toFixed(1);
-      const title = sanitize((g.label || '') + (g.note ? (' — ' + g.note) : ''));
-      return '<span class="tg-gift-item" style="--gx:' + x + 'px;--gy:' + y + 'px;--gi:' + i + '" title="' + title + '">' +
-        (g.ico || '★') + '</span>';
+      const rar = g.rarity || 'common';
+      const hue = g.hue != null ? g.hue : 42;
+      const title = sanitize((g.label || '') + (g.serial ? (' · ' + g.serial) : '') + (g.note ? (' — ' + g.note) : ''));
+      return '<span class="tg-gift-item nft-art rarity-' + rar + '" style="--gx:' + x + 'px;--gy:' + y + 'px;--gi:' + i +
+        ';--art-hue:' + hue + ';--art-pattern:' + (g.pattern || 0) + '" title="' + title + '" data-serial="' + sanitize(g.serial || '') + '">' +
+        '<span class="nft-art-ico">' + (g.ico || '★') + '</span></span>';
     }).join('') + '</div>';
   },
 
-  /** One gift as status chip near the name (Telegram profile style) */
+  /** Status chip near name — top artifact */
   _giftStatusBadge(gifts) {
     const list = (gifts || []).filter(g => g && g.attached !== false);
     if (!list.length) return '';
+    const rank = { legendary: 4, epic: 3, rare: 2, common: 1 };
+    list.sort((a, b) => (rank[b.rarity] || 0) - (rank[a.rarity] || 0));
     const g = list[0];
-    return '<span class="gift-status-badge" title="' + sanitize(g.note || g.label || '') + '">' +
+    const rar = g.rarity || 'common';
+    return '<span class="gift-status-badge rarity-' + rar + '" title="' +
+      sanitize((g.label || '') + (g.serial ? (' · ' + g.serial) : '') + (g.note ? (' — ' + g.note) : '')) + '">' +
       (g.ico || '★') + (list.length > 1 ? ('+' + (list.length - 1)) : '') + '</span>';
   },
 
@@ -201,7 +207,7 @@ const Views = {
 
     return `
       <div class="club-profile">
-        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-s · full</div>
+        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-u · full</div>
 
         <!-- Telegram-style profile card (coach/player) -->
         ${(() => {
@@ -442,10 +448,15 @@ const Views = {
     } catch (_) {}
     const giftOrbit = this._tgGiftCloud(gifts, 0.85);
     const giftRow = gifts.length
-      ? ('<div class="fifa-gifts">' + gifts.slice(0, 10).map(g =>
-          '<span class="fifa-gift-chip" title="' + sanitize(g.note || g.label || '') + '">' + (g.ico || '★') + ' ' + sanitize(g.label || '') + '</span>'
-        ).join('') + '</div>')
-      : '<div class="fifa-gifts fifa-gifts-empty"><span class="note-sm">Подарунків ще немає</span></div>';
+      ? ('<div class="fifa-gifts">' + gifts.slice(0, 10).map(g => {
+          const rar = g.rarity || 'common';
+          const rarL = (typeof CoachTools !== 'undefined' && CoachTools.RARITY_LABEL && CoachTools.RARITY_LABEL[rar]) || rar;
+          return '<span class="fifa-gift-chip nft-chip rarity-' + rar + '" style="--art-hue:' + (g.hue != null ? g.hue : 42) + '" title="' +
+            sanitize((g.label || '') + (g.serial ? (' · ' + g.serial) : '') + (g.note ? (' — ' + g.note) : '')) + '">' +
+            (g.ico || '★') + ' ' + sanitize(g.label || '') +
+            '<small>' + sanitize(rarL) + (g.serial ? (' · ' + sanitize(g.serial)) : '') + '</small></span>';
+        }).join('') + '</div>')
+      : '<div class="fifa-gifts fifa-gifts-empty"><span class="note-sm">Артефактів ще немає</span></div>';
 
     // Порівняння — ТІЛЬКИ всередині FIFA-картки
     const otherId = (typeof window !== 'undefined' && (window.__fifaCompareId || window.__coachCompareId || window.__playerCompareId)) || '';
@@ -486,7 +497,7 @@ const Views = {
           <div class="fifa-stat"><b>${p.age || '—'}</b><span>Вік</span></div>
         </div>
         <div class="fifa-gifts-block">
-          <div class="fifa-gifts-title">Подарунки</div>
+          <div class="fifa-gifts-title">Артефакти клубу</div>
           ${giftRow}
         </div>
         ${compareHtml}
@@ -507,55 +518,55 @@ const Views = {
     const s = Store.get();
     if (!me) return '';
     const others = (s.players || []).filter(p => p.id !== me.id).sort((a, b) => (a.number || 0) - (b.number || 0));
-    const opts = others.map(p =>
-      `<option value="${p.id}" ${otherId === p.id ? 'selected' : ''}>#${p.number || '—'} ${sanitize(p.lastName || p.firstName || '')}</option>`
+    const opts = '<option value="">— оберіть гравця —</option>' + others.map(p =>
+      '<option value="' + p.id + '"' + (otherId === p.id ? ' selected' : '') + '>#' + (p.number || '—') + ' ' + sanitize(p.lastName || p.firstName || '') + '</option>'
     ).join('');
-    const other = otherId ? others.find(p => p.id === otherId) : null;
-    const a = this._playerStats(me.id);
-    const b = other ? this._playerStats(other.id) : null;
-    const condA = me.readiness != null ? me.readiness : (me.condition != null ? me.condition : 80);
-    const condB = other ? (other.readiness != null ? other.readiness : (other.condition != null ? other.condition : 80)) : 0;
-
-    let charts = '';
-    if (other && b) {
-      charts = `
-        <div class="compare-grid">
-          <div class="compare-col">
-            <div class="compare-name">Ви · #${me.number || ''}</div>
-            ${this._statBar('Готовність %', condA, 100, '#2ecc71')}
-            ${this._statBar('Відвідування %', a.attPct || 0, 100, '#3498db')}
-            ${this._statBar('Сер. RPE', a.avgRpe || 0, 10, '#f1c40f')}
-            ${this._statBar('Load 28д', a.load28 || 0, Math.max(200, (a.load28 || 0) * 1.2, (b.load28 || 0) * 1.2), '#e67e22')}
-            ${this._statBar('Load зараз', me.load || 0, 10, '#9b59b6')}
-          </div>
-          <div class="compare-col">
-            <div class="compare-name">#${other.number || ''} ${sanitize(other.lastName || '')}</div>
-            ${this._statBar('Готовність %', condB, 100, '#2ecc71')}
-            ${this._statBar('Відвідування %', b.attPct || 0, 100, '#3498db')}
-            ${this._statBar('Сер. RPE', b.avgRpe || 0, 10, '#f1c40f')}
-            ${this._statBar('Load 28д', b.load28 || 0, Math.max(200, (a.load28 || 0) * 1.2, (b.load28 || 0) * 1.2), '#e67e22')}
-            ${this._statBar('Load зараз', other.load || 0, 10, '#9b59b6')}
-          </div>
-        </div>
-        <div class="compare-radar card-inner">
-          <div class="ct" style="margin-bottom:8px">Порівняльна діаграма</div>
-          ${this._compareSvg(me, other, a, b, condA, condB)}
-        </div>`;
-    } else {
-      charts = `<p class="note-sm">Оберіть партнера зі складу, щоб порівняти готовність, відвідування, RPE та навантаження.</p>`;
-    }
-
     return `
-      <div class="card glass compare-card">
-        <div class="ct">Порівняння зі складом</div>
-        <div class="fgr" style="margin:8px 0">
-          <label>Порівняти з</label>
-          <select id="playerCompareSel" data-action="player-compare">
-            <option value="">— оберіть гравця —</option>
-            ${opts}
-          </select>
+      <div class="compare-card" data-compare-root="${me.id}">
+        <div class="compare-title">Порівняння зі складом</div>
+        <label class="compare-label">Порівняти з</label>
+        <select id="playerCompareSel" class="compare-select" data-action="player-compare" data-compare-me="${me.id}">
+          ${opts}
+        </select>
+        <p class="note-sm">Оберіть партнера зі складу — готовність, відвідування, RPE, навантаження.</p>
+        <div id="compareResultHost" class="compare-result-host">
+          ${this._compareResultHtml(me, otherId)}
         </div>
-        ${charts}
+      </div>`;
+  },
+
+  _compareResultHtml(me, otherId) {
+    if (!me || !otherId) {
+      return '<div class="compare-empty">Оберіть гравця для порівняння</div>';
+    }
+    const s = Store.get();
+    const other = (s.players || []).find(p => p.id === otherId);
+    if (!other) return '<div class="compare-empty">Гравець не знайдений</div>';
+    const a = this._playerStats(me.id);
+    const b = this._playerStats(other.id);
+    const condA = me.readiness != null ? me.readiness : (me.condition != null ? me.condition : 80);
+    const condB = other.readiness != null ? other.readiness : (other.condition != null ? other.condition : 80);
+    const nameA = '#' + (me.number || '') + ' ' + sanitize(me.lastName || me.firstName || 'Ви');
+    const nameB = '#' + (other.number || '') + ' ' + sanitize(other.lastName || other.firstName || '');
+    const maxLoad = Math.max(200, (a.load28 || 0) * 1.2, (b.load28 || 0) * 1.2);
+    return `
+      <div class="compare-grid">
+        <div class="compare-col">
+          <div class="compare-name">${nameA}</div>
+          ${this._statBar('Готовність %', condA, 100, '#2ecc71')}
+          ${this._statBar('Відвідування %', a.attPct || 0, 100, '#3498db')}
+          ${this._statBar('Сер. RPE', a.avgRpe || 0, 10, '#f1c40f')}
+          ${this._statBar('Load 28д', a.load28 || 0, maxLoad, '#e67e22')}
+          ${this._statBar('Load', me.load != null ? me.load : 0, 10, '#9b59b6')}
+        </div>
+        <div class="compare-col">
+          <div class="compare-name">${nameB}</div>
+          ${this._statBar('Готовність %', condB, 100, '#2ecc71')}
+          ${this._statBar('Відвідування %', b.attPct || 0, 100, '#3498db')}
+          ${this._statBar('Сер. RPE', b.avgRpe || 0, 10, '#f1c40f')}
+          ${this._statBar('Load 28д', b.load28 || 0, maxLoad, '#e67e22')}
+          ${this._statBar('Load', other.load != null ? other.load : 0, 10, '#9b59b6')}
+        </div>
       </div>`;
   },
 
@@ -946,7 +957,7 @@ const Views = {
     try {
       const all = (typeof CoachTools !== 'undefined' && CoachTools.playerGifts) ? CoachTools.playerGifts(p.id) : [];
       if (all.length) {
-        giftsHtml = '<div class="cpv-section"><div class="cpv-title">Подарунки</div><div class="gift-row">' +
+        giftsHtml = '<div class="cpv-section"><div class="cpv-title">Артефакти</div><div class="gift-row">' +
           all.map(g => '<span class="gift-chip' + (g.attached ? ' attached' : '') + '" title="' + sanitize(g.note || g.label) + '"><span class="gift-ico">' + (g.ico || '★') + '</span>' + sanitize(g.label) + (g.attached ? ' · на профілі' : '') + '</span>').join('') +
           '</div></div>';
       }
@@ -966,7 +977,7 @@ const Views = {
       <div class="cpv-section">
         <div class="cpv-title">Нагородити подарунком</div>
         <div class="gift-award-grid">
-          ${catalog.map(g => '<button type="button" class="gift-award-btn" data-action="award-gift" data-player-id="' + p.id + '" data-gift-id="' + g.id + '"><span class="ico">' + g.ico + '</span>' + sanitize(g.label) + '</button>').join('')}
+          ${catalog.map(g => { const rar = g.rarity || 'common'; const rl = (CoachTools.RARITY_LABEL && CoachTools.RARITY_LABEL[rar]) || rar; return '<button type="button" class="gift-award-btn rarity-' + rar + '" data-action="award-gift" data-player-id="' + p.id + '" data-gift-id="' + g.id + '" style="--art-hue:' + (g.hue||42) + '"><span class="ico">' + g.ico + '</span><span class="gift-aw-lab">' + sanitize(g.label) + '</span><small class="gift-aw-rar">' + sanitize(rl) + '</small></button>'; }).join('')}
         </div>
         <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
           <p class="note-sm" style="margin:8px 0 0">Памʼятний підпис додається лише разом із подарунком (кнопки вище).</p>
@@ -1424,22 +1435,24 @@ const Views = {
         <p class="note-sm">Імпорт доступний усім. Експорт — лише тренеру.</p>
       </div>
 
-      <div class="card glass">
-        <div class="ct">Ролі (RBAC)</div>
-        <div class="fgr"><label>Тренерські username (через кому)</label>
-          <input id="setCoaches" value="${coachesStr}"/>
+      <div class="card glass coach-only">
+        <div class="ct">Артефакти клубу (NFT)</div>
+        <p class="note-sm">Встав JSON з Gemini (короткий опис → промпт → JSON) і додай у каталог нагород.</p>
+        <div class="fgr full">
+          <label>JSON артефакту</label>
+          <textarea id="artifactJsonInput" rows="6" placeholder='{ "id": "welcome_club_badge", "ico": "🔰", "label": "...", "rarity": "common", "hue": 200, "pattern": 1, "description": "...", "momentHint": "..." }'></textarea>
         </div>
-        <div class="fgr full"><label>Привʼязка гравців (JSON)</label>
-          <textarea id="setPlayerLinks" rows="3" placeholder='{"123":"p01"}'>${linksStr}</textarea>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+          <button type="button" class="btn btn-p" data-action="add-artifact-json">Додати артефакт у каталог</button>
+          <button type="button" class="btn btn-s" data-action="preview-artifacts">Каталог (${(typeof CoachTools !== 'undefined' && CoachTools.GIFT_CATALOG) ? CoachTools.GIFT_CATALOG.length : 0})</button>
         </div>
-        <p class="note-sm">Поточний користувач: <strong id="rbacMe">—</strong></p>
-        <button type="button" class="btn btn-s" data-action="save-rbac">Зберегти ролі</button>
+        <p class="note-sm" style="margin-top:8px">Після додавання артефакт з’явиться в картці гравця → «Нагородити».</p>
       </div>
 
       <div class="card"><div class="ct">Про застосунок</div>
         <p style="font-size:12px;color:var(--muted);line-height:1.6">
           Тренерська платформа · МЕТАЛІСТ ШТУТГАРТ<br>
-          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-s<br>
+          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-u<br>
           localStorage · Telegram Cloud
         </p>
       </div>`;

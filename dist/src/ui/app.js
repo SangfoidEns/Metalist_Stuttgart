@@ -805,66 +805,69 @@ const App = {
   _bindPlayerCompare() {
     const sel = document.getElementById('playerCompareSel');
     if (!sel) return;
-    if (sel._msCmpBound) return;
-    sel._msCmpBound = true;
+    // Завжди переприв'язуємо (clone) — надійно в модалці Telegram WebView
+    if (sel._msCmpBound && sel._msCmpHandler) {
+      try { sel.removeEventListener('change', sel._msCmpHandler); } catch (_) {}
+    }
     const onChange = () => {
-      const oid = sel.value || '';
+      const oid = (document.getElementById('playerCompareSel') || sel).value || '';
       try {
         window.__playerCompareId = oid;
         window.__coachCompareId = oid;
-      } catch (_) {}
-      // 1) FIFA / картка в модалці — оновити на місці
-      try {
         window.__fifaCompareId = oid;
-        window.__coachCompareId = oid;
-        window.__playerCompareId = oid;
-        const modalRoot = document.getElementById('modalBody')
-          || document.querySelector('.fifa-modal-wrap')
-          || document.querySelector('.mo-body')
-          || document.querySelector('#modal .body');
-        let pid = window.__coachCardPlayerId || null;
-        if (!pid && modalRoot) {
-          const host = modalRoot.querySelector('[data-compare-host], [data-fifa-player], [data-player-id]');
-          pid = host && (host.getAttribute('data-compare-host') || host.getAttribute('data-fifa-player') || host.getAttribute('data-player-id'));
+      } catch (_) {}
+      let pid = window.__coachCardPlayerId || null;
+      if (!pid) {
+        const host = document.querySelector('[data-compare-host], [data-fifa-player], [data-compare-root], [data-compare-me]');
+        pid = host && (
+          host.getAttribute('data-compare-host') ||
+          host.getAttribute('data-fifa-player') ||
+          host.getAttribute('data-compare-root') ||
+          host.getAttribute('data-compare-me')
+        );
+      }
+      if (!pid) {
+        const s2 = document.getElementById('playerCompareSel');
+        pid = s2 && s2.getAttribute('data-compare-me');
+      }
+      if (!pid || typeof Views === 'undefined') return;
+      const me = (Store.get().players || []).find(x => x.id === pid);
+      if (!me) return;
+      // Оновлення ТІЛЬКИ блоку результатів — без перезавантаження модалки
+      const hostEl = document.getElementById('compareResultHost');
+      if (hostEl && Views._compareResultHtml) {
+        hostEl.innerHTML = Views._compareResultHtml(me, oid);
+        try { if (typeof TelegramManager !== 'undefined' && TelegramManager.haptic) TelegramManager.haptic('light'); } catch (_) {}
+        return;
+      }
+      // Fallback: повний ререндер картки
+      try {
+        const asCoach = typeof AuthManager !== 'undefined' && AuthManager.isCoach && AuthManager.isCoach();
+        let html = '', title = '';
+        if (asCoach && Views.coachPlayerDetail) {
+          title = 'Картка гравця · ' + (me.lastName || me.firstName || '');
+          html = '<div class="fifa-modal-wrap" data-compare-host="' + pid + '">' + Views.coachPlayerDetail(pid) + '</div>';
+        } else if (Views._fifaCard) {
+          const st = Views._playerStats ? Views._playerStats(pid) : {};
+          title = 'FIFA-картка · ' + (me.lastName || me.firstName || '');
+          html = '<div class="fifa-modal-wrap" data-compare-host="' + pid + '">' + Views._fifaCard(me, st) + '</div>';
         }
-        if (pid && typeof Views !== 'undefined' && typeof Modal !== 'undefined' && Modal.open) {
-          const p = (Store.get().players || []).find(x => x.id === pid);
-          const asCoach = typeof AuthManager !== 'undefined' && AuthManager.isCoach && AuthManager.isCoach();
-          let html = '';
-          let title = '';
-          if (asCoach && Views.coachPlayerDetail) {
-            title = 'Картка гравця · ' + ((p && (p.lastName || p.firstName)) || '');
-            html = '<div class="fifa-modal-wrap" data-compare-host="' + pid + '">' + Views.coachPlayerDetail(pid) + '</div>';
-          } else if (Views._fifaCard) {
-            const st = Views._playerStats ? Views._playerStats(pid) : {};
-            title = 'FIFA-картка · ' + ((p && (p.lastName || p.firstName)) || '');
-            html = '<div class="fifa-modal-wrap" data-compare-host="' + pid + '">' + Views._fifaCard(p, st) + '</div>';
-          }
-          if (html) {
-            Modal.open(title, html, [{ label: 'Закрити', cls: 'btn-s', action: 'cancel' }]);
-            setTimeout(() => {
-              try {
-                const s2 = document.getElementById('playerCompareSel');
-                if (s2) { s2._msCmpBound = false; s2.value = oid; App._bindPlayerCompare(); }
-              } catch (_) {}
-            }, 40);
-            return;
-          }
+        if (html && typeof Modal !== 'undefined' && Modal.open) {
+          Modal.open(title, html, [{ label: 'Закрити', cls: 'btn-s', action: 'cancel' }]);
+          setTimeout(() => {
+            try {
+              const s2 = document.getElementById('playerCompareSel');
+              if (s2) { s2.value = oid; App._bindPlayerCompare(); }
+            } catch (_) {}
+          }, 50);
         }
-      } catch (err) { console.warn('[compare modal]', err); }
-      // 2) Інакше — оновити поточний екран (домашня гравця / склад)
-      try { this.renderCurrent(); } catch (_) {}
-      setTimeout(() => {
-        try {
-          const s2 = document.getElementById('playerCompareSel');
-          if (s2) { s2._msCmpBound = false; s2.value = oid; App._bindPlayerCompare(); }
-        } catch (_) {}
-      }, 40);
+      } catch (err) { console.warn('[compare fallback]', err); }
     };
+    sel._msCmpHandler = onChange;
+    sel._msCmpBound = true;
     sel.addEventListener('change', onChange);
-    // iOS: інколи change не приходить — слухаємо input теж
-    sel.addEventListener('input', onChange);
   },
+
   handleTelegramBack() {
     try {
       // спочатку закрити sheet / modal
@@ -1869,6 +1872,47 @@ const App = {
         }
         return Modal.confirm('Скинути всі дані до демо?', () => { StorageManager.clear(); App.applyBranding(); App.navigate('dashboard'); Toast.show('Скинуто', 'ok'); });
       }
+      
+      if (action === 'add-artifact-json') {
+        e.preventDefault(); e.stopPropagation();
+        if (typeof AuthManager !== 'undefined' && AuthManager.isCoach && !AuthManager.isCoach()) {
+          Toast.show('Лише тренер', 'warn'); return;
+        }
+        const ta = document.getElementById('artifactJsonInput');
+        const raw = ta ? ta.value : '';
+        if (!raw || !raw.trim()) {
+          Toast.show('Вставте JSON артефакту', 'warn'); return;
+        }
+        try {
+          const art = CoachTools.addArtifactToCatalog(raw);
+          Toast.show((art.ico || '★') + ' «' + art.label + '» додано в каталог', 'ok');
+          if (ta) ta.value = '';
+          try { App.renderCurrent(); } catch (_) {}
+        } catch (err) {
+          console.error('[add-artifact]', err);
+          Toast.show('Помилка JSON: ' + (err && err.message ? err.message : 'перевірте формат'), 'err');
+        }
+        return;
+      }
+      if (action === 'preview-artifacts') {
+        e.preventDefault(); e.stopPropagation();
+        try { CoachTools.mergeCustomCatalog && CoachTools.mergeCustomCatalog(); } catch (_) {}
+        const list = (typeof CoachTools !== 'undefined' && CoachTools.GIFT_CATALOG) ? CoachTools.GIFT_CATALOG : [];
+        const rarL = (CoachTools.RARITY_LABEL) || {};
+        const html = '<div class="artifact-catalog-list">' + list.map(g => {
+          const rl = rarL[g.rarity] || g.rarity || '';
+          return '<div class="artifact-cat-row rarity-' + (g.rarity || 'common') + '" style="--art-hue:' + (g.hue || 42) + '">' +
+            '<span class="ico">' + (g.ico || '★') + '</span>' +
+            '<div><b>' + sanitize(g.label || g.id) + '</b><br><small>' + sanitize(rl) + ' · ' + sanitize(g.id) + '</small>' +
+            (g.description ? ('<br><span class="note-sm">' + sanitize(g.description) + '</span>') : '') +
+            '</div></div>';
+        }).join('') + '</div>';
+        if (typeof Modal !== 'undefined' && Modal.open) {
+          Modal.open('Каталог артефактів (' + list.length + ')', html, [{ label: 'Закрити', cls: 'btn-s', action: 'cancel' }]);
+        }
+        return;
+      }
+
       if (action === 'save-settings') return Actions.saveSettings();
       if (action === 'save-rbac') {
         const coachesRaw = (document.getElementById('setCoaches')?.value || '').split(',').map(x => x.trim()).filter(Boolean);
