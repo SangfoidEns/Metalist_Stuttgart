@@ -7460,3 +7460,141 @@ body.board-on:not(.mode-board-focus) > #btbToolsTray {
   gap: 4px;
   font-size: 14px;
 }
+
+/* ═══ Telegram-style gift cloud (around avatar, not on face/name) ═══ */
+.cp-avatar-wrap,
+.pl-card-av-wrap,
+.fifa-avatar-wrap {
+  position: relative !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: visible !important;
+}
+.cp-avatar-wrap {
+  width: 120px !important;
+  height: 120px !important;
+  margin: 0 auto 8px !important;
+}
+.cp-avatar-wrap .cp-avatar {
+  width: 88px !important;
+  height: 88px !important;
+  margin: 0 !important;
+  z-index: 2;
+  position: relative;
+}
+.pl-card-av-wrap {
+  width: 88px !important;
+  height: 88px !important;
+  margin: 0 auto 10px !important;
+}
+.pl-card-av-wrap .pl-card-av {
+  width: 64px !important;
+  height: 64px !important;
+  margin: 0 !important;
+  z-index: 2;
+  position: relative;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.fifa-avatar-wrap {
+  width: 100px !important;
+  height: 100px !important;
+}
+.fifa-avatar-wrap .fifa-avatar {
+  z-index: 2;
+  position: relative;
+}
+
+.tg-gift-cloud {
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 4 !important;
+  overflow: visible !important;
+}
+.tg-gift-item {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: 30px !important;
+  height: 30px !important;
+  margin: -15px 0 0 -15px !important;
+  border-radius: 50% !important;
+  background: rgba(18, 22, 30, 0.92) !important;
+  border: 1.5px solid rgba(240, 193, 75, 0.55) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06) inset !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: 15px !important;
+  line-height: 1 !important;
+  transform: translate(var(--gx, 0), var(--gy, 0)) !important;
+  animation: tgGiftFloat 3.4s ease-in-out infinite !important;
+  animation-delay: calc(var(--gi, 0) * 0.32s) !important;
+  will-change: transform;
+}
+@keyframes tgGiftFloat {
+  0%, 100% { transform: translate(var(--gx), var(--gy)) translateY(0) scale(1); }
+  35% { transform: translate(var(--gx), calc(var(--gy) - 7px)) scale(1.06); }
+  70% { transform: translate(calc(var(--gx) + 3px), calc(var(--gy) - 2px)) scale(1.02); }
+}
+
+/* Status badge near name (not on avatar) */
+.gift-status-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-left: 6px !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+  background: rgba(240, 193, 75, 0.14) !important;
+  border: 1px solid rgba(240, 193, 75, 0.4) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #f0c14b !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+}
+
+/* Hide old circular orbit leftovers */
+.cp-gift-orbit,
+.pl-card-gifts,
+.fifa-gift-orbit { display: none !important; }
+.pl-card-giftline { display: none !important; }
+
+/* Scheme / field picker modal */
+.scheme-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: min(60vh, 420px);
+  overflow: auto;
+  padding: 4px;
+}
+.scheme-pick-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(20, 24, 32, 0.85);
+  color: #f2f5f8;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.scheme-pick-item.on {
+  border-color: rgba(240, 193, 75, 0.65);
+  background: rgba(240, 193, 75, 0.12);
+  color: #f0c14b;
+  box-shadow: 0 0 0 1px rgba(240, 193, 75, 0.25);
+}
+.scheme-pick-item:active { transform: scale(0.97); }
+
+/* allow gift cloud outside clean profile card */
+.cp-clean { overflow: visible !important; }
+.cp-hero.cp-person { overflow: visible !important; }
+.pl-card { overflow: visible !important; }
+.pl-cards { overflow: visible !important; }

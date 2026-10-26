@@ -466,6 +466,55 @@ const App = {
     el.addEventListener('pointerleave', (e) => { if (timer) clear(); });
   },
 
+
+  openSchemePicker() {
+    try {
+      let names = [];
+      try {
+        const src = (typeof SCHEMES !== 'undefined' && SCHEMES) ? SCHEMES
+          : (typeof window !== 'undefined' && window.SCHEMES) ? window.SCHEMES : null;
+        if (src) names = Object.keys(src);
+      } catch (_) {}
+      if (!names.length) names = ['4-3-3','4-4-2','4-2-3-1','3-5-2','3-4-3','5-3-2','4-1-4-1','3-4-2-1'];
+      // Prefer common + BACK3 list
+      const preferred = ['4-3-3','4-4-2','4-2-3-1','4-1-4-1','3-5-2','3-4-3','3-4-2-1','5-3-2','5-4-1','4-5-1','3-2-5-atk','3-2-build'];
+      const ordered = preferred.filter(n => names.includes(n)).concat(names.filter(n => !preferred.includes(n)));
+      const cur = (Store.get().activeBoard && Store.get().activeBoard.scheme) || '';
+      const html = '<div class="scheme-picker-grid">' + ordered.map(n =>
+        '<button type="button" class="scheme-pick-item' + (n === cur ? ' on' : '') + '" data-action="apply-scheme" data-scheme="' + n + '">' +
+        '<span class="scheme-pick-name">' + n + '</span></button>'
+      ).join('') + '</div>';
+      if (typeof Modal !== 'undefined' && Modal.open) {
+        Modal.open('Тактична схема / розстановка', html, [{ label: 'Закрити', cls: 'btn-s', action: 'cancel' }]);
+      }
+    } catch (err) {
+      console.error('[openSchemePicker]', err);
+      if (typeof Toast !== 'undefined') Toast.show('Не вдалося відкрити схеми', 'err');
+    }
+  },
+
+  openFieldViewPicker() {
+    try {
+      const opts = [
+        { id: 'full', label: 'Повне поле' },
+        { id: 'half', label: 'Половина' },
+        { id: 'attack', label: 'Атакувальна третина' },
+        { id: 'defense', label: 'Оборонна третина' }
+      ];
+      const cur = (Store.get().activeBoard && Store.get().activeBoard.fieldView) || 'full';
+      const html = '<div class="scheme-picker-grid">' + opts.map(o =>
+        '<button type="button" class="scheme-pick-item' + (o.id === cur ? ' on' : '') + '" data-action="apply-field-view" data-field-view="' + o.id + '">' +
+        '<span class="scheme-pick-name">' + o.label + '</span></button>'
+      ).join('') + '</div>';
+      if (typeof Modal !== 'undefined' && Modal.open) {
+        Modal.open('Вид поля', html, [{ label: 'Закрити', cls: 'btn-s', action: 'cancel' }]);
+      }
+    } catch (err) {
+      console.error('[openFieldViewPicker]', err);
+      if (typeof Toast !== 'undefined') Toast.show('Не вдалося відкрити вид поля', 'err');
+    }
+  },
+
   openDefaultBoard() {
     try {
       if (typeof StorageManager !== 'undefined' && StorageManager.isIoLocked && StorageManager.isIoLocked()) {
@@ -1761,6 +1810,51 @@ const App = {
         App.openDefaultBoard();
         return;
       }
+      
+      if (action === 'apply-scheme') {
+        e.preventDefault(); e.stopPropagation();
+        const name = t.dataset.scheme || t.getAttribute('data-scheme');
+        if (!name) return;
+        try {
+          if (typeof BoardEngine !== 'undefined' && BoardEngine.applyScheme) {
+            BoardEngine.applyScheme(name);
+          }
+          if (Store.get().activeBoard) Store.get().activeBoard.scheme = name;
+          const lab = document.getElementById('schemePickVal');
+          if (lab) lab.textContent = name;
+          try { StorageManager.save(); } catch (_) {}
+          if (typeof Modal !== 'undefined') Modal.close();
+          if (typeof Toast !== 'undefined') Toast.show('Схема ' + name, 'ok');
+        } catch (err) {
+          console.error('[apply-scheme]', err);
+          if (typeof Toast !== 'undefined') Toast.show('Помилка схеми', 'err');
+        }
+        return;
+      }
+      if (action === 'apply-field-view') {
+        e.preventDefault(); e.stopPropagation();
+        const fv = t.dataset.fieldView || t.getAttribute('data-field-view');
+        if (!fv) return;
+        try {
+          if (Store.get().activeBoard) Store.get().activeBoard.fieldView = fv;
+          if (typeof BoardEngine !== 'undefined') {
+            if (BoardEngine.drawField) BoardEngine.drawField(fv);
+            if (BoardEngine.renderTokens) BoardEngine.renderTokens();
+            if (BoardEngine.renderDrawings) BoardEngine.renderDrawings();
+            if (BoardEngine.fitField) BoardEngine.fitField();
+          }
+          const labels = { full: 'Повне', half: 'Половина', attack: 'Атака', defense: 'Захист' };
+          const lab = document.getElementById('fieldViewVal');
+          if (lab) lab.textContent = labels[fv] || fv;
+          try { StorageManager.save(); } catch (_) {}
+          if (typeof Modal !== 'undefined') Modal.close();
+          if (typeof Toast !== 'undefined') Toast.show('Поле: ' + (labels[fv] || fv), 'ok');
+        } catch (err) {
+          console.error('[apply-field-view]', err);
+        }
+        return;
+      }
+
       if (action === 'pick-scheme') {
         e.preventDefault(); e.stopPropagation();
         return App.openSchemePicker();

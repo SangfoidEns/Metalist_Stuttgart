@@ -79,6 +79,37 @@ const Views = {
     return pool.slice(0, Math.max(3, n)); // мінімум 3 для естетики профілю
   },
 
+
+  /** Telegram-style gift cloud: irregular slots around avatar, float animation */
+  _tgGiftCloud(gifts, radiusScale) {
+    const list = (gifts || []).filter(g => g && g.attached !== false).slice(0, 8);
+    if (!list.length) return '';
+    const sc = radiusScale != null ? radiusScale : 1;
+    // Irregular Telegram-like positions (not a perfect circle)
+    const slots = [
+      { x: -56, y: -22 }, { x: 58, y: -18 }, { x: -50, y: 38 },
+      { x: 54, y: 42 }, { x: -18, y: -56 }, { x: 24, y: -58 },
+      { x: -64, y: 10 }, { x: 66, y: 6 }
+    ];
+    return '<div class="tg-gift-cloud" aria-hidden="true">' + list.map((g, i) => {
+      const s = slots[i % slots.length];
+      const x = (s.x * sc).toFixed(1);
+      const y = (s.y * sc).toFixed(1);
+      const title = sanitize((g.label || '') + (g.note ? (' — ' + g.note) : ''));
+      return '<span class="tg-gift-item" style="--gx:' + x + 'px;--gy:' + y + 'px;--gi:' + i + '" title="' + title + '">' +
+        (g.ico || '★') + '</span>';
+    }).join('') + '</div>';
+  },
+
+  /** One gift as status chip near the name (Telegram profile style) */
+  _giftStatusBadge(gifts) {
+    const list = (gifts || []).filter(g => g && g.attached !== false);
+    if (!list.length) return '';
+    const g = list[0];
+    return '<span class="gift-status-badge" title="' + sanitize(g.note || g.label || '') + '">' +
+      (g.ico || '★') + (list.length > 1 ? ('+' + (list.length - 1)) : '') + '</span>';
+  },
+
   _profilePersonCard() {
     const s = Store.get();
     let person = null;
@@ -170,7 +201,7 @@ const Views = {
 
     return `
       <div class="club-profile">
-        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-r · full</div>
+        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-s · full</div>
 
         <!-- Telegram-style profile card (coach/player) -->
         ${(() => {
@@ -190,16 +221,10 @@ const Views = {
               style="border-color:var(--pos-ring);background:var(--pos-bg)">
               ${ph}
             </button>
-            ${(pc.gifts && pc.gifts.length) ? ('<div class="cp-gift-orbit" aria-hidden="true">' + pc.gifts.slice(0, 8).map((g, i) => {
-              const ang = (i / Math.max(pc.gifts.length, 1)) * Math.PI * 2 - Math.PI / 2;
-              const r = 52;
-              const x = Math.cos(ang) * r;
-              const y = Math.sin(ang) * r;
-              return '<span class="cp-gift-orb cp-gift-anim" style="--gi:' + i + ';transform:translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)" title="' + sanitize(g.label || '') + (g.note ? (' — ' + sanitize(g.note)) : '') + '">' + (g.ico || '★') + '</span>';
-            }).join('') + '</div>') : ''}
+            ${this._tgGiftCloud(pc.gifts, 1)}
           </div>
           <div class="cp-role-line"><span class="cp-role-kind">${pc.kind === 'coach' ? 'Тренер' : 'Гравець'}</span></div>
-          <h1 class="cp-title cp-title-name">${sanitize(pc.name)}</h1>
+          <h1 class="cp-title cp-title-name">${sanitize(pc.name)}${this._giftStatusBadge(pc.gifts)}</h1>
           <div class="cp-role-badge" ${pc.kind === 'coach' ? 'data-action="coach-easter" role="button" title="Утримуйте 1с · картка тренера"' : ''} style="border-color:var(--pos-ring);color:var(--pos-ring);cursor:${pc.kind === 'coach' ? 'pointer' : 'default'}">${sanitize(pc.pos)}</div>
           <div class="cp-club-line cp-club-brand"><span class="cp-brand-a">Металіст</span> <span class="cp-brand-b">Штутгарт</span></div>
           <div class="cp-status">
@@ -346,6 +371,48 @@ const Views = {
     return '';
   },
 
+
+  /** Telegram-style gift positions: irregular slots around avatar, outside the face */
+  _giftSlots(n, radius) {
+    const R = radius || 52;
+    // fixed aesthetic slots (not perfect circle), order fills first
+    const slots = [
+      { a: -70, r: 1.05 }, { a: -20, r: 1.12 }, { a: 30, r: 1.08 },
+      { a: 80, r: 1.15 }, { a: 140, r: 1.06 }, { a: 190, r: 1.14 },
+      { a: 230, r: 1.10 }, { a: 280, r: 1.12 }
+    ];
+    const out = [];
+    for (let i = 0; i < Math.min(n, slots.length); i++) {
+      const s = slots[i];
+      const rad = (s.a * Math.PI) / 180;
+      out.push({
+        x: Math.cos(rad) * R * s.r,
+        y: Math.sin(rad) * R * s.r,
+        i
+      });
+    }
+    return out;
+  },
+  _renderGiftOrbit(gifts, radius) {
+    if (!gifts || !gifts.length) return '';
+    const list = gifts.slice(0, 8);
+    const slots = this._giftSlots(list.length, radius || 52);
+    return '<div class="tg-gift-orbit" aria-hidden="true">' + list.map((g, i) => {
+      const s = slots[i] || { x: 0, y: 0, i };
+      return '<span class="tg-gift" style="--gx:' + s.x.toFixed(1) + 'px;--gy:' + s.y.toFixed(1) + 'px;--gi:' + i + '" title="' +
+        (typeof sanitize === 'function' ? sanitize(g.label || '') : (g.label || '')) +
+        (g.note ? (' — ' + (typeof sanitize === 'function' ? sanitize(g.note) : g.note)) : '') +
+        '">' + (g.ico || '★') + '</span>';
+    }).join('') + '</div>';
+  },
+  _renderGiftStatus(gifts) {
+    if (!gifts || !gifts.length) return '';
+    // compact status chips next to name (not on name text itself)
+    return '<span class="tg-gift-status">' + gifts.slice(0, 4).map(g =>
+      '<span class="tg-gift-badge" title="' + (typeof sanitize === 'function' ? sanitize(g.label || '') : (g.label || '')) + '">' + (g.ico || '★') + '</span>'
+    ).join('') + '</span>';
+  },
+
   _fifaCard(p, stats) {
     if (!p) return '';
     stats = stats || {};
@@ -373,15 +440,7 @@ const Views = {
         gifts = (CoachTools.playerGifts(p.id) || []).filter(g => g.attached !== false);
       }
     } catch (_) {}
-    const giftOrbit = gifts.length
-      ? ('<div class="fifa-gift-orbit" aria-hidden="true">' + gifts.slice(0, 8).map((g, i) => {
-          const ang = (i / Math.max(gifts.length, 1)) * Math.PI * 2 - Math.PI / 2;
-          const r = 40;
-          const x = Math.cos(ang) * r;
-          const y = Math.sin(ang) * r;
-          return '<span class="cp-gift-orb cp-gift-anim" style="--gi:' + i + ';transform:translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)" title="' + sanitize(g.label || '') + (g.note ? (' — ' + sanitize(g.note)) : '') + '">' + (g.ico || '★') + '</span>';
-        }).join('') + '</div>')
-      : '';
+    const giftOrbit = this._tgGiftCloud(gifts, 0.85);
     const giftRow = gifts.length
       ? ('<div class="fifa-gifts">' + gifts.slice(0, 10).map(g =>
           '<span class="fifa-gift-chip" title="' + sanitize(g.note || g.label || '') + '">' + (g.ico || '★') + ' ' + sanitize(g.label || '') + '</span>'
@@ -415,6 +474,7 @@ const Views = {
         <div class="fifa-name">
           <span class="fifa-num">#${p.number || '—'}</span>
           ${sanitize(p.firstName || '')} <strong>${sanitize(p.lastName || '')}</strong>
+          ${this._giftStatusBadge(gifts)}
         </div>
         <div class="fifa-meta">${sanitize(stLabel)}${tg ? ' · ' + tg : ''}</div>
         <div class="fifa-stats">
@@ -619,6 +679,12 @@ const Views = {
     const schemes = (s.boards || s.savedBoards || []).slice(0, 6);
     const club = (s.settings && s.settings.clubName) || 'Metalist Stuttgart';
     const fullName = me ? this._cleanDisplayName([me.firstName, me.lastName].filter(Boolean).join(' ') || me.name || 'Гравець') : '';
+    let meGifts = [];
+    try {
+      if (me && typeof CoachTools !== 'undefined' && CoachTools.playerGifts) {
+        meGifts = (CoachTools.playerGifts(me.id) || []).filter(g => g.attached !== false);
+      }
+    } catch (_) {}
     const pc = me ? {
       kind: 'player',
       name: fullName,
@@ -627,7 +693,8 @@ const Views = {
       accent: this._posAccent(me.position),
       attPct: stats.attPct || 0,
       player: me,
-      initials: this._initials(fullName)
+      initials: this._initials(fullName),
+      gifts: meGifts
     } : null;
     const photoHtml = pc && pc.photo
       ? `<img src="${sanitize(pc.photo)}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex')"/><span class="cp-avatar-ph" style="display:none">${sanitize(pc.initials)}</span>`
@@ -640,12 +707,15 @@ const Views = {
       </div>
       ${pc ? `
         <div class="cp-hero cp-person cp-clean" style="--pos-bg:${pc.accent.bg};--pos-ring:${pc.accent.ring}">
-          <button type="button" class="cp-avatar" data-action="open-fifa-card" data-player-id="${pc.player.id}"
-            title="FIFA-картка" style="border-color:var(--pos-ring);background:var(--pos-bg)">
-            ${photoHtml}
-          </button>
+          <div class="cp-avatar-wrap">
+            <button type="button" class="cp-avatar" data-action="open-fifa-card" data-player-id="${pc.player.id}"
+              title="FIFA-картка" style="border-color:var(--pos-ring);background:var(--pos-bg)">
+              ${photoHtml}
+            </button>
+            ${this._tgGiftCloud(pc.gifts, 1)}
+          </div>
           <div class="cp-role-line"><span class="cp-role-kind">${pc.kind === 'coach' ? 'Тренер' : 'Гравець'}</span></div>
-          <h1 class="cp-title cp-title-name">${sanitize(pc.name)}</h1>
+          <h1 class="cp-title cp-title-name">${sanitize(pc.name)}${this._giftStatusBadge(pc.gifts)}</h1>
           <div class="cp-role-badge" style="border-color:var(--pos-ring);color:var(--pos-ring)">${sanitize(pc.pos)}</div>
           <div class="cp-club-line cp-club-brand"><span class="cp-brand-a">Металіст</span> <span class="cp-brand-b">Штутгарт</span></div>
           <div class="cp-status"><span class="cp-dot"></span>Відвідуваність ${Math.round(pc.attPct)}% · тап по фото → FIFA</div>
@@ -997,25 +1067,16 @@ const Views = {
         let gifs = [];
         try {
           if (typeof CoachTools !== 'undefined' && CoachTools.playerGifts)
-            gifs = (CoachTools.playerGifts(p.id) || []).filter(g => g.attached !== false).slice(0, 6);
+            gifs = (CoachTools.playerGifts(p.id) || []).filter(g => g.attached !== false).slice(0, 8);
         } catch (_) {}
-        const giftOrbit = gifs.length
-          ? ('<div class="pl-card-gifts">' + gifs.map((g, i) => {
-              const ang = (i / Math.max(gifs.length, 1)) * Math.PI * 2 - Math.PI / 2;
-              const r = 34;
-              return '<span class="cp-gift-orb cp-gift-anim" style="--gi:' + i + ';transform:translate(' + (Math.cos(ang)*r).toFixed(1) + 'px,' + (Math.sin(ang)*r).toFixed(1) + 'px)">' + (g.ico || '★') + '</span>';
-            }).join('') + '</div>')
-          : '';
-        const giftLine = gifs.length
-          ? ('<div class="pl-card-giftline">' + gifs.map(g => '<span title="' + sanitize(g.label||'') + '">' + (g.ico||'★') + '</span>').join('') + '</div>')
-          : '';
+        const giftOrbit = this._tgGiftCloud(gifs, 0.7);
+        const giftBadge = this._giftStatusBadge(gifs);
         return '<div class="pl-card glass' + (isMe ? ' is-me' : '') + '" data-player-id="' + p.id + '" data-action="open-player-card" role="button" tabindex="0">' +
           '<div class="pl-card-av-wrap"><div class="pl-card-av" style="border-color:' + acc.ring + ';background:' + acc.bg + '">' + ph + '</div>' + giftOrbit + '</div>' +
           '<div class="pl-card-body">' +
-          '<div class="pl-card-name">#' + (p.number || '—') + ' ' + sanitize(name) + '</div>' +
+          '<div class="pl-card-name">#' + (p.number || '—') + ' ' + sanitize(name) + ' ' + giftBadge + '</div>' +
           '<div class="pl-card-meta">' + sanitize(p.position || '') + ' · ' + role + '</div>' +
           '<div class="pl-card-att">Відвідуваність ' + att + '%</div>' +
-          giftLine +
           '</div></div>';
       }).join('');
       return `
@@ -1378,7 +1439,7 @@ const Views = {
       <div class="card"><div class="ct">Про застосунок</div>
         <p style="font-size:12px;color:var(--muted);line-height:1.6">
           Тренерська платформа · МЕТАЛІСТ ШТУТГАРТ<br>
-          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-r<br>
+          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-s<br>
           localStorage · Telegram Cloud
         </p>
       </div>`;
