@@ -83,44 +83,51 @@ const Views = {
   /** Telegram-style gifts: scatter around avatar (not on face), expand animation */
   _tgGiftCloud(gifts, radiusScale, mode) {
     // mode: 'full' | 'right3' | 'mini3'
-    const list = (gifts || []).filter(g => g && g.attached !== false);
+    // Always show attached gifts around avatar (Telegram-style scatter)
+    let list = (gifts || []).filter(g => g && g.attached !== false);
+    // If coach marked gifts without attached flag, still show them
+    if (!list.length && gifts && gifts.length) {
+      list = gifts.filter(Boolean);
+    }
     if (!list.length) return '';
     const sc = radiusScale != null ? radiusScale : 1;
     let slots, take;
     if (mode === 'right3') {
-      // only 3 main gifts to the RIGHT of avatar (FIFA card)
       take = list.slice(0, 3);
-      slots = [{ x: 48, y: -28 }, { x: 58, y: 4 }, { x: 48, y: 34 }];
+      slots = [{ x: 52, y: -30 }, { x: 62, y: 6 }, { x: 50, y: 38 }];
     } else if (mode === 'mini3') {
-      // squad cards: max 3 small, upper-right cluster
       take = list.slice(0, 3);
-      slots = [{ x: 34, y: -28 }, { x: 40, y: 2 }, { x: 32, y: 30 }];
+      slots = [{ x: 36, y: -30 }, { x: 42, y: 4 }, { x: 34, y: 32 }];
     } else {
-      // home: fill card space like Telegram gifts (not a strict circle)
       take = list.slice(0, 10);
       slots = [
-        { x: -92, y: -48 }, { x: 96, y: -42 }, { x: -88, y: 52 },
-        { x: 90, y: 56 }, { x: -38, y: -88 }, { x: 42, y: -90 },
-        { x: -108, y: 4 }, { x: 112, y: 8 }, { x: -70, y: -72 },
-        { x: 74, y: 78 }
+        { x: -96, y: -48 }, { x: 100, y: -44 }, { x: -92, y: 54 },
+        { x: 94, y: 58 }, { x: -40, y: -92 }, { x: 44, y: -94 },
+        { x: -112, y: 6 }, { x: 116, y: 10 }, { x: -72, y: -76 },
+        { x: 76, y: 82 }
       ];
     }
-    return '<div class="tg-gift-cloud tg-gift-expand' + (mode ? (' mode-' + mode) : '') + '" aria-hidden="true">' +
-      take.map((g, i) => {
-        const s = slots[i % slots.length];
-        const x = (s.x * sc).toFixed(1);
-        const y = (s.y * sc).toFixed(1);
-        const rar = g.rarity || 'common';
-        const hue = g.hue != null ? g.hue : 42;
-        const title = sanitize((g.label || '') + (g.serial ? (' · ' + g.serial) : '') + (g.note ? (' — ' + g.note) : ''));
-        const special = (g.special || g.giftId === 'neural_horse_tester') ? ' art-neural-horse' : '';
-        return '<span class="tg-gift-item nft-art rarity-' + rar + special + '" style="--gx:' + x + 'px;--gy:' + y + 'px;--gi:' + i +
-          ';--art-hue:' + hue + ';--art-pattern:' + (g.pattern || 0) + '" title="' + title +
-          '" data-gift-id="' + (g.giftId || '') + '" data-action="inspect-artifact" data-gift-uid="' + (g.id || '') + '">' +
-          '<span class="nft-art-core" aria-hidden="true"></span>' +
-          '<span class="nft-art-ico">' + (g.ico || '★') + '</span>' +
-          '<span class="nft-art-wave" aria-hidden="true"></span></span>';
-      }).join('') + '</div>';
+    const items = take.map((g, i) => {
+      const s = slots[i % slots.length];
+      const x = (s.x * sc);
+      const y = (s.y * sc);
+      const rar = g.rarity || 'common';
+      const hue = g.hue != null ? g.hue : 42;
+      const title = sanitize((g.label || '') + (g.serial ? (' · ' + g.serial) : '') + (g.note ? (' — ' + g.note) : ''));
+      const special = (g.special || g.giftId === 'neural_horse_tester') ? ' art-neural-horse' : '';
+      // Inline transform as hard fallback (works even if CSS vars fail)
+      return '<span class="tg-gift-item nft-art rarity-' + rar + special +
+        '" style="--gx:' + x.toFixed(1) + 'px;--gy:' + y.toFixed(1) + 'px;--gi:' + i +
+        ';--art-hue:' + hue + ';--art-pattern:' + (g.pattern || 0) +
+        ';transform:translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) scale(1);opacity:1;visibility:visible"' +
+        ' title="' + title +
+        '" data-gift-id="' + (g.giftId || '') + '" data-action="inspect-artifact" data-gift-uid="' + (g.id || '') + '">' +
+        '<span class="nft-art-core" aria-hidden="true"></span>' +
+        '<span class="nft-art-ico">' + (g.ico || '★') + '</span>' +
+        '<span class="nft-art-wave" aria-hidden="true"></span></span>';
+    }).join('');
+    return '<div class="tg-gift-cloud tg-gift-expand mode-' + (mode || 'full') +
+      '" aria-hidden="false" style="opacity:1;visibility:visible;pointer-events:none">' + items + '</div>';
   },
 
   /** Status chip near name — featured artifact only (Telegram-style) */
@@ -143,6 +150,46 @@ const Views = {
     return '<span class="gift-status-badge rarity-' + rar + '" title="' +
       sanitize((g.label || '') + (g.serial ? (' · ' + g.serial) : '') + (g.note ? (' — ' + g.note) : '')) + '">' +
       (g.ico || '★') + extra + '</span>';
+  },
+
+
+  _coachSquadCard() {
+    const s = Store.get();
+    const set = s.settings || {};
+    let name = set.coachName || 'Artem Serdiuk';
+    let photo = set.coachPhoto || '';
+    try {
+      if (typeof AuthManager !== 'undefined' && AuthManager.displayName) name = AuthManager.displayName() || name;
+      if (!photo && typeof TelegramManager !== 'undefined' && TelegramManager.getUser) {
+        const u = TelegramManager.getUser();
+        if (u && u.photo_url) photo = u.photo_url;
+      }
+    } catch (_) {}
+    const ach = (typeof CoachTools !== 'undefined' && CoachTools.getCoachAchievements)
+      ? CoachTools.getCoachAchievements()
+      : { attendancePct: 100, appMs: 0, boardMs: 0, trainingsDone: 0, boards: 0 };
+    const fmt = (ms) => {
+      if (!ms) return '0хв';
+      const m = Math.round(ms / 60000);
+      if (m < 60) return m + 'хв';
+      return (Math.round(m / 6) / 10) + 'г';
+    };
+    const initials = (name || 'AS').split(/\s+/).map(p => p[0] || '').join('').slice(0, 2).toUpperCase();
+    const ph = photo
+      ? '<img src="' + sanitize(photo) + '" alt="" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'"/>'
+      : '<span class="cp-avatar-ph">' + sanitize(initials) + '</span>';
+    return '<div class="pl-card glass coach-squad-card is-coach" data-action="open-coach-card" role="button" tabindex="0">' +
+      '<div class="pl-card-av-wrap"><div class="pl-card-av coach-av" style="border-color:#f0c14b;background:linear-gradient(145deg,#3d2e0a,#1a1408)">' + ph + '</div></div>' +
+      '<div class="pl-card-body">' +
+      '<div class="pl-card-name">★ ' + sanitize(name) + '</div>' +
+      '<div class="pl-card-meta">Головний тренер · METALIST</div>' +
+      '<div class="pl-card-att">Відвідуваність ' + (ach.attendancePct || 0) + '%</div>' +
+      '<div class="coach-mini-stats">' +
+        '<span title="У додатку">📱 ' + fmt(ach.appMs) + '</span>' +
+        '<span title="На дошці">⚽ ' + fmt(ach.boardMs) + '</span>' +
+        '<span title="Проведено">✓ ' + (ach.trainingsDone || 0) + '</span>' +
+        '<span title="Схеми">📋 ' + (ach.boards || 0) + '</span>' +
+      '</div></div></div>';
   },
 
   _profilePersonCard() {
@@ -236,7 +283,7 @@ const Views = {
 
     return `
       <div class="club-profile">
-        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-w · full</div>
+        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-y · full</div>
 
         <!-- Telegram-style profile card (coach/player) -->
         ${(() => {
@@ -1156,7 +1203,7 @@ const Views = {
       return `
       <div class="st">Склад <span class="note-sm">перегляд · порівняння</span></div>
       ${compareBlock}
-      <div class="pl-cards">${cards || '<div class="es">Немає гравців</div>'}</div>`;
+      <div class="pl-cards">${this._coachSquadCard()}${cards || '<div class="es">Немає гравців</div>'}</div>`;
     }
 
     const viewMode = (typeof window !== 'undefined' && window.__squadViewMode) || 'list';
@@ -1199,16 +1246,26 @@ const Views = {
         </span>
         <button class="btn btn-p btn-sm" data-action="new-player">+ Гравець</button>
       </div>
-      <div class="coach-stats-strip glass">
-        <div class="css-item"><b>${trN}</b><span>Тренувань</span></div>
-        <div class="css-item"><b>${doneN}</b><span>Проведено</span></div>
-        <div class="css-item"><b>${appH} год</b><span>У додатку</span></div>
-        <div class="css-item"><b>${boardH} год</b><span>На дошці</span></div>
-      </div>
+      ${(() => {
+        const ach = (typeof CoachTools !== 'undefined' && CoachTools.getCoachAchievements)
+          ? CoachTools.getCoachAchievements() : null;
+        const appLabel = ach ? (ach.appMs >= 3600000 ? ((Math.round(ach.appMs/360000)/10) + ' г') : (Math.round(ach.appMs/60000) + ' хв')) : (appH + ' год');
+        const boardLabel = ach ? (ach.boardMs >= 3600000 ? ((Math.round(ach.boardMs/360000)/10) + ' г') : (Math.round(ach.boardMs/60000) + ' хв')) : (boardH + ' год');
+        const attC = ach ? ach.attendancePct : 0;
+        const giftsN = ach ? ach.giftsGiven : 0;
+        return '<div class="coach-stats-strip glass">' +
+          '<div class="css-item"><b>' + trN + '</b><span>Тренувань</span></div>' +
+          '<div class="css-item"><b>' + doneN + '</b><span>Проведено</span></div>' +
+          '<div class="css-item"><b>' + appLabel + '</b><span>У додатку</span></div>' +
+          '<div class="css-item"><b>' + boardLabel + '</b><span>На дошці</span></div>' +
+          '<div class="css-item"><b>' + attC + '%</b><span>Відвід. тренера</span></div>' +
+          '<div class="css-item"><b>' + giftsN + '</b><span>Подарунків</span></div>' +
+          '</div>';
+      })()}
       <p class="note-sm">Тап — картка. Утримуйте — меню. Картки / список — перемикач вище.</p>
       ${compareBlock}
       ${viewMode === 'cards'
-        ? ('<div class="pl-cards">' + (cardsCoach || '<div class="es">Немає гравців</div>') + '</div>')
+        ? ('<div class="pl-cards">' + this._coachSquadCard() + (cardsCoach || '<div class="es">Немає гравців</div>') + '</div>')
         : (`<div class="pl-table glass">
         <div class="pl-head">
           ${th('number', '№')}
@@ -1559,7 +1616,7 @@ const Views = {
       <div class="card"><div class="ct">Про застосунок</div>
         <p style="font-size:12px;color:var(--muted);line-height:1.6">
           Тренерська платформа · МЕТАЛІСТ ШТУТГАРТ<br>
-          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-w<br>
+          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-y<br>
           localStorage · Telegram Cloud
         </p>
       </div>`;

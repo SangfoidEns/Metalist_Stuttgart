@@ -7512,26 +7512,7 @@ body.board-on:not(.mode-board-focus) > #btbToolsTray {
   z-index: 4 !important;
   overflow: visible !important;
 }
-.tg-gift-item {
-  position: absolute !important;
-  left: 50% !important;
-  top: 50% !important;
-  width: 30px !important;
-  height: 30px !important;
-  margin: -15px 0 0 -15px !important;
-  border-radius: 50% !important;
-  background: rgba(18, 22, 30, 0.92) !important;
-  border: 1.5px solid rgba(240, 193, 75, 0.55) !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06) inset !important;
-  display: grid !important;
-  place-items: center !important;
-  font-size: 15px !important;
-  line-height: 1 !important;
-  transform: translate(var(--gx, 0), var(--gy, 0)) !important;
-  animation: tgGiftFloat 3.4s ease-in-out infinite !important;
-  animation-delay: calc(var(--gi, 0) * 0.32s) !important;
-  will-change: transform;
-}
+/* neutralized conflicting tg-gift-item block */
 @keyframes tgGiftFloat {
   0%, 100% { transform: translate(var(--gx), var(--gy)) translateY(0) scale(1); }
   35% { transform: translate(var(--gx), calc(var(--gy) - 7px)) scale(1.06); }
@@ -7738,19 +7719,7 @@ body.board-on:not(.mode-board-focus) > #btbToolsTray {
 
 /* Telegram gift expand */
 .tg-gift-cloud.tg-gift-expand { position:absolute; inset:0; pointer-events:none; z-index:4; overflow:visible; }
-.tg-gift-item {
-  position:absolute; left:50%; top:50%;
-  width:28px; height:28px; margin:-14px 0 0 -14px;
-  border-radius:50%;
-  display:grid; place-items:center;
-  background:radial-gradient(circle at 30% 30%, hsl(var(--art-hue,42),80%,55%), hsl(var(--art-hue,42),70%,35%));
-  border:1.5px solid rgba(255,255,255,0.45);
-  box-shadow:0 2px 8px rgba(0,0,0,0.35);
-  transform: translate(var(--gx,0), var(--gy,0)) scale(0.3);
-  opacity:0;
-  animation: tgGiftPop 0.45s cubic-bezier(.2,1.2,.4,1) forwards;
-  animation-delay: calc(var(--gi,0) * 0.06s);
-}
+/* neutralized tg-gift-item pop block */
 .tg-gift-item .nft-art-ico { font-size:14px; line-height:1; }
 @keyframes tgGiftPop {
   0% { transform: translate(0,0) scale(0.2); opacity:0; }
@@ -7980,123 +7949,182 @@ body.board-on:not(.mode-board-focus) > #btbToolsTray {
 }
 
 
-/* ═══ GIFTS FINAL — Telegram orbit around avatar (home full / squad max 3) ═══ */
+
+/* ═══ GIFTS FINAL v2 — always visible, Telegram scatter around avatar ═══ */
 .cp-avatar-wrap {
   position: relative !important;
-  width: min(280px, 72vw) !important;
-  height: min(220px, 56vw) !important;
-  margin: 4px auto 12px !important;
+  width: min(300px, 80vw) !important;
+  height: min(240px, 58vw) !important;
+  margin: 8px auto 16px !important;
   display: grid !important;
   place-items: center !important;
   overflow: visible !important;
-  z-index: 5 !important;
+  z-index: 8 !important;
+  isolation: isolate !important;
 }
 .cp-avatar-wrap .cp-avatar {
   width: 96px !important;
   height: 96px !important;
   margin: 0 !important;
-  z-index: 3 !important;
+  z-index: 4 !important;
   position: relative !important;
   border-radius: 50% !important;
   overflow: hidden !important;
 }
+.cp-hero,
+.cp-hero.cp-person,
 .cp-hero.cp-person.cp-clean,
 .cp-clean,
-.cp-hero {
+.club-profile,
+.pl-card,
+.pl-cards,
+.view-body,
+#view,
+.main {
   overflow: visible !important;
 }
+
 .pl-card-av-wrap {
   position: relative !important;
-  width: 96px !important;
-  height: 96px !important;
-  margin: 0 auto 10px !important;
+  width: 100px !important;
+  height: 100px !important;
+  margin: 0 auto 12px !important;
   overflow: visible !important;
-  z-index: 3 !important;
+  z-index: 5 !important;
 }
 .pl-card-av-wrap .pl-card-av {
   width: 64px !important;
   height: 64px !important;
   margin: 0 !important;
-  z-index: 2 !important;
+  z-index: 3 !important;
   position: relative !important;
   border-radius: 50% !important;
   overflow: hidden !important;
 }
-.pl-card, .pl-cards, .club-profile, .view-body, #view {
-  overflow: visible !important;
-}
 
 .tg-gift-cloud,
-.tg-gift-cloud.tg-gift-expand {
+.tg-gift-cloud.tg-gift-expand,
+.tg-gift-cloud.mode-full,
+.tg-gift-cloud.mode-mini3,
+.tg-gift-cloud.mode-right3 {
   position: absolute !important;
   inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
   pointer-events: none !important;
-  z-index: 6 !important;
+  z-index: 9 !important;
   overflow: visible !important;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
+
+/* CRITICAL: no opacity:0 — gifts must always render */
 .tg-gift-item,
-.tg-gift-item.nft-art {
+.tg-gift-item.nft-art,
+.tg-gift-cloud .tg-gift-item {
   position: absolute !important;
   left: 50% !important;
   top: 50% !important;
-  width: 36px !important;
-  height: 36px !important;
-  margin: -18px 0 0 -18px !important;
+  width: 38px !important;
+  height: 38px !important;
+  margin: -19px 0 0 -19px !important;
   border-radius: 12px !important;
   display: grid !important;
   place-items: center !important;
+  visibility: visible !important;
+  opacity: 1 !important;
   pointer-events: auto !important;
   cursor: pointer !important;
-  opacity: 0;
-  transform: translate(0, 0) scale(0.15);
-  animation:
-    tgGiftPopIn 0.55s cubic-bezier(0.2, 1.15, 0.35, 1) forwards,
-    tgGiftFloat 3.6s ease-in-out infinite;
-  animation-delay:
-    calc(var(--gi, 0) * 0.07s),
-    calc(0.55s + var(--gi, 0) * 0.07s);
-  will-change: transform, opacity;
+  z-index: 10 !important;
+  /* position via variables — always on screen */
+  transform: translate(var(--gx, 40px), var(--gy, -40px)) scale(1) !important;
   background:
-    radial-gradient(circle at 30% 25%, hsla(var(--art-hue, 42), 90%, 70%, 0.55), transparent 55%),
-    linear-gradient(145deg, hsla(var(--art-hue, 42), 70%, 28%, 0.95), rgba(12, 14, 20, 0.95)) !important;
-  border: 1.5px solid hsla(var(--art-hue, 42), 80%, 55%, 0.7) !important;
+    radial-gradient(circle at 30% 25%, hsla(var(--art-hue, 42), 90%, 70%, 0.6), transparent 55%),
+    linear-gradient(145deg, hsla(var(--art-hue, 42), 75%, 32%, 0.98), rgba(10, 12, 18, 0.96)) !important;
+  border: 2px solid hsla(var(--art-hue, 42), 85%, 58%, 0.85) !important;
   box-shadow:
-    0 4px 14px rgba(0,0,0,0.45),
-    0 0 14px hsla(var(--art-hue, 42), 90%, 50%, 0.28) !important;
+    0 4px 16px rgba(0,0,0,0.5),
+    0 0 16px hsla(var(--art-hue, 42), 90%, 50%, 0.35) !important;
+  animation: tgGiftFloatOnly 3.5s ease-in-out infinite !important;
+  animation-delay: calc(var(--gi, 0) * 0.28s) !important;
 }
-.tg-gift-item .nft-art-ico { font-size: 17px; line-height: 1; position: relative; z-index: 1; }
-@keyframes tgGiftPopIn {
-  0%   { opacity: 0; transform: translate(0, 0) scale(0.12); }
-  65%  { opacity: 1; }
-  100% { opacity: 1; transform: translate(var(--gx, 0), var(--gy, 0)) scale(1); }
+.tg-gift-item .nft-art-ico,
+.tg-gift-item .nft-art-core,
+.tg-gift-item .nft-art-wave {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
 }
-@keyframes tgGiftFloat {
+.tg-gift-item .nft-art-ico { font-size: 18px !important; line-height: 1 !important; }
+
+@keyframes tgGiftFloatOnly {
   0%, 100% { transform: translate(var(--gx), var(--gy)) translateY(0) scale(1); }
-  40%      { transform: translate(var(--gx), calc(var(--gy) - 6px)) scale(1.05); }
-  70%      { transform: translate(calc(var(--gx) + 2px), calc(var(--gy) - 2px)) scale(1.02); }
+  50%      { transform: translate(var(--gx), calc(var(--gy) - 5px)) scale(1.06); }
 }
 
-/* Home full mode — larger ornaments */
+/* Home — larger ornaments */
 .mode-full .tg-gift-item,
 .mode-full .tg-gift-item.nft-art {
-  width: 40px !important;
-  height: 40px !important;
-  margin: -20px 0 0 -20px !important;
+  width: 44px !important;
+  height: 44px !important;
+  margin: -22px 0 0 -22px !important;
 }
-.mode-full .tg-gift-item .nft-art-ico { font-size: 18px; }
+.mode-full .tg-gift-item .nft-art-ico { font-size: 20px !important; }
 
-/* Squad — max 3, compact */
+/* Squad max 3 — compact */
 .mode-mini3 .tg-gift-item,
 .mode-mini3 .tg-gift-item.nft-art {
-  width: 24px !important;
-  height: 24px !important;
-  margin: -12px 0 0 -12px !important;
+  width: 26px !important;
+  height: 26px !important;
+  margin: -13px 0 0 -13px !important;
 }
-.mode-mini3 .tg-gift-item .nft-art-ico { font-size: 12px; }
+.mode-mini3 .tg-gift-item .nft-art-ico { font-size: 13px !important; }
 
 .mode-right3 .tg-gift-item,
 .mode-right3 .tg-gift-item.nft-art {
-  width: 32px !important;
-  height: 32px !important;
-  margin: -16px 0 0 -16px !important;
+  width: 34px !important;
+  height: 34px !important;
+  margin: -17px 0 0 -17px !important;
+}
+
+/* Fallback if CSS vars missing — still show something */
+.tg-gift-item:nth-child(1) { --gx: -88px; --gy: -36px; }
+.tg-gift-item:nth-child(2) { --gx: 92px; --gy: -32px; }
+.tg-gift-item:nth-child(3) { --gx: -84px; --gy: 44px; }
+.tg-gift-item:nth-child(4) { --gx: 88px; --gy: 48px; }
+.tg-gift-item:nth-child(5) { --gx: -30px; --gy: -86px; }
+.tg-gift-item:nth-child(6) { --gx: 36px; --gy: -88px; }
+.tg-gift-item:nth-child(7) { --gx: -102px; --gy: 6px; }
+.tg-gift-item:nth-child(8) { --gx: 106px; --gy: 10px; }
+
+
+/* Coach in squad */
+.pl-card.coach-squad-card {
+  border: 1px solid rgba(240, 193, 75, 0.45) !important;
+  background: linear-gradient(160deg, rgba(61, 46, 10, 0.55), rgba(20, 18, 12, 0.9)) !important;
+}
+.pl-card.coach-squad-card .pl-card-name { color: #f0c14b !important; }
+.coach-mini-stats {
+  display: flex; flex-wrap: wrap; gap: 6px 10px;
+  margin-top: 6px; font-size: 11px; color: rgba(255,255,255,0.75);
+}
+.coach-av { box-shadow: 0 0 0 2px rgba(240,193,75,0.5) !important; }
+
+.artifact-coach-actions {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.artifact-coach-actions .btn-danger {
+  color: #ff6b6b !important;
+  border-color: rgba(255,107,107,0.4) !important;
+}
+.coach-stats-strip {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 8px !important;
+}
+@media (min-width: 600px) {
+  .coach-stats-strip { grid-template-columns: repeat(6, 1fr) !important; }
 }

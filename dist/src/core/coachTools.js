@@ -388,3 +388,111 @@ CoachTools.playerMoments = function (playerId) {
   return (Store.get().moments || []).filter(m => m.playerId === playerId)
     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
 };
+
+
+/** Редагування / видалення подарунків (лише тренер) */
+CoachTools.deleteGift = function (giftInstanceId) {
+  const s = Store.get();
+  if (!s.gifts) s.gifts = [];
+  const before = s.gifts.length;
+  s.gifts = s.gifts.filter(g => g.id !== giftInstanceId);
+  if (s.gifts.length === before) return false;
+  try { StorageManager.save(); } catch (_) {}
+  if (typeof Toast !== 'undefined') Toast.show('Подарунок видалено', 'ok');
+  try { if (typeof App !== 'undefined' && App.renderCurrent) App.renderCurrent(); } catch (_) {}
+  return true;
+};
+
+CoachTools.editGiftNote = function (giftInstanceId, note) {
+  const s = Store.get();
+  const g = (s.gifts || []).find(x => x.id === giftInstanceId);
+  if (!g) return false;
+  g.note = String(note || '').trim();
+  try { StorageManager.save(); } catch (_) {}
+  if (typeof Toast !== 'undefined') Toast.show('Пам\'ятний момент оновлено', 'ok');
+  return true;
+};
+
+CoachTools.detachGift = function (giftInstanceId) {
+  const s = Store.get();
+  const g = (s.gifts || []).find(x => x.id === giftInstanceId);
+  if (!g) return false;
+  g.attached = false;
+  g.featured = false;
+  try { StorageManager.save(); } catch (_) {}
+  if (typeof Toast !== 'undefined') Toast.show('Знято з профілю', 'ok');
+  return true;
+};
+
+CoachTools.toggleAttachGift = function (giftInstanceId) {
+  const s = Store.get();
+  const g = (s.gifts || []).find(x => x.id === giftInstanceId);
+  if (!g) return false;
+  g.attached = !(g.attached !== false);
+  if (!g.attached) g.featured = false;
+  try { StorageManager.save(); } catch (_) {}
+  if (typeof Toast !== 'undefined') Toast.show(g.attached ? 'Прикріплено до профілю' : 'Знято з профілю', 'ok');
+  return g.attached;
+};
+
+/** ID тренера в attendance */
+CoachTools.COACH_ATT_ID = '__coach__';
+
+CoachTools.coachAttendanceRate = function () {
+  const s = Store.get();
+  const past = (typeof LoadModel !== 'undefined' && LoadModel.pastTrainings)
+    ? LoadModel.pastTrainings(s.trainings || [])
+    : (s.trainings || []).filter(t => t.status === 'done' || (t.date && t.date <= (typeof today === 'function' ? today() : '')));
+  if (!past.length) return 0;
+  let present = 0;
+  past.forEach(t => {
+    const a = t.attendance && t.attendance[CoachTools.COACH_ATT_ID];
+    // default: if training done and no explicit mark → coach present
+    if (a) {
+      if (a.present) present++;
+    } else if (t.status === 'done' || t.coachPresent !== false) {
+      present++;
+    }
+  });
+  return Math.round((present / past.length) * 100);
+};
+
+CoachTools.setCoachAttendance = function (trainingId, present) {
+  const s = Store.get();
+  const t = (s.trainings || []).find(x => x.id === trainingId);
+  if (!t) return false;
+  if (!t.attendance) t.attendance = {};
+  t.attendance[CoachTools.COACH_ATT_ID] = {
+    present: !!present,
+    intensity: present ? 7 : 0,
+    note: 'Тренер'
+  };
+  t.coachPresent = !!present;
+  try { StorageManager.save(); } catch (_) {}
+  return true;
+};
+
+CoachTools.getCoachAchievements = function () {
+  const s = Store.get();
+  const set = s.settings || {};
+  const cs = set.coachStats || s.coachStats || { appMs: 0, boardMs: 0 };
+  const past = (s.trainings || []).filter(t => t.status === 'done');
+  const planned = (s.trainings || []).filter(t => t.status === 'planned');
+  const totalMin = past.reduce((a, t) => a + (t.duration || 0), 0);
+  const giftsGiven = (s.gifts || []).length;
+  const moments = (s.moments || []).length;
+  const boards = (s.boards || []).length;
+  const players = (s.players || []).length;
+  return {
+    appMs: cs.appMs || 0,
+    boardMs: cs.boardMs || 0,
+    trainingsDone: past.length,
+    trainingsPlanned: planned.length,
+    sessionMinutes: totalMin,
+    boards,
+    players,
+    giftsGiven,
+    moments,
+    attendancePct: CoachTools.coachAttendanceRate()
+  };
+};

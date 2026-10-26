@@ -309,6 +309,7 @@ const App = {
   },
 
   openCoachCard() {
+    /* achievements + attendance via CoachTools */
     const s = (typeof Store !== 'undefined' && Store.get()) || {};
     const set = s.settings || {};
     const name = set.coachName
@@ -342,8 +343,11 @@ const App = {
         if (att[pid] && att[pid].present !== false) attPresent++;
       });
     });
-    const attPct = attTotal ? Math.round(attPresent / attTotal * 100) : 0;
+    const attPct = (typeof CoachTools !== 'undefined' && CoachTools.coachAttendanceRate) ? CoachTools.coachAttendanceRate() : 100;
+    const ach = (typeof CoachTools !== 'undefined' && CoachTools.getCoachAchievements)
+      ? CoachTools.getCoachAchievements() : null;
     const cs = set.coachStats || { appMs: 0, boardMs: 0 };
+    if (ach) { cs.appMs = ach.appMs; cs.boardMs = ach.boardMs; }
     const appTime = (typeof App !== 'undefined' && App.formatDurationMs) ? App.formatDurationMs(cs.appMs || 0) : '—';
     const boardTime = (typeof App !== 'undefined' && App.formatDurationMs) ? App.formatDurationMs(cs.boardMs || 0) : '—';
     const boardsN = (s.boards || []).length;
@@ -2089,6 +2093,20 @@ const App = {
         if (!g) return;
         const rar = (typeof CoachTools !== 'undefined' && CoachTools.RARITY_LABEL && CoachTools.RARITY_LABEL[g.rarity]) || g.rarity || '';
         const isNeural = g.special === 'neural-horse' || g.giftId === 'neural_horse_tester';
+        const isCoach = typeof AuthManager !== 'undefined' && AuthManager.isCoach && AuthManager.isCoach();
+        const attached = g.attached !== false;
+        let coachBtns = '';
+        if (isCoach) {
+          coachBtns =
+            '<div class="artifact-coach-actions">' +
+            '<button type="button" class="btn btn-s btn-sm" data-action="edit-gift-note" data-gift-uid="' + uid + '">✏️ Момент</button>' +
+            '<button type="button" class="btn btn-s btn-sm" data-action="toggle-attach-gift" data-gift-uid="' + uid + '">' +
+              (attached ? '📎 Зняти з профілю' : '📌 На профіль') + '</button>' +
+            (g.playerId ? ('<button type="button" class="btn btn-s btn-sm" data-action="set-featured-gift" data-player-id="' +
+              g.playerId + '" data-gift-uid="' + uid + '">⭐ Біля імені</button>') : '') +
+            '<button type="button" class="btn btn-s btn-sm btn-danger" data-action="delete-gift" data-gift-uid="' + uid + '">🗑 Видалити</button>' +
+            '</div>';
+        }
         const html = '<div class="artifact-inspect' + (isNeural ? ' neural-inspect' : '') + '">' +
           '<div class="artifact-inspect-stage">' +
           '<div class="artifact-hologram' + (isNeural ? ' art-neural-horse' : '') + '" style="--art-hue:' + (g.hue != null ? g.hue : 42) + '">' +
@@ -2096,15 +2114,65 @@ const App = {
           '<span class="nft-art-wave"></span></div></div>' +
           '<div class="artifact-inspect-meta">' +
           '<div class="artifact-title">' + (typeof sanitize === 'function' ? sanitize(g.label) : g.label) + '</div>' +
-          '<div class="artifact-rar rarity-' + (g.rarity || 'common') + '">' + rar + (g.serial ? (' · ' + g.serial) : '') + '</div>' +
+          '<div class="artifact-rar rarity-' + (g.rarity || 'common') + '">' + rar + (g.serial ? (' · ' + g.serial) : '') +
+            (attached ? ' · на профілі' : ' · у інвентарі') + '</div>' +
           (g.description ? ('<p class="artifact-desc">' + (typeof sanitize === 'function' ? sanitize(g.description) : g.description) + '</p>') : '') +
           (g.note ? ('<p class="artifact-note">«' + (typeof sanitize === 'function' ? sanitize(g.note) : g.note) + '»</p>') : '') +
           (g.momentHint && !g.note ? ('<p class="artifact-hint">' + (typeof sanitize === 'function' ? sanitize(g.momentHint) : g.momentHint) + '</p>') : '') +
+          coachBtns +
           '</div></div>';
         if (typeof Modal !== 'undefined' && Modal.open) {
           Modal.open('Артефакт клубу', html, [{ label: 'Закрити', cls: 'btn-s', action: 'cancel' }]);
         }
         try { TelegramManager.haptic && TelegramManager.haptic('medium'); } catch (_) {}
+        return;
+      }
+      if (action === 'edit-gift-note') {
+        e.preventDefault(); e.stopPropagation();
+        const uid = t.dataset.giftUid;
+        const g = (Store.get().gifts || []).find(x => x.id === uid);
+        if (!g) return;
+        const cur = g.note || '';
+        if (typeof Modal !== 'undefined' && Modal.prompt) {
+          Modal.prompt('Пам\'ятний момент (підпис до подарунка)', cur, (v) => {
+            if (v === null) return;
+            if (typeof CoachTools !== 'undefined' && CoachTools.editGiftNote) CoachTools.editGiftNote(uid, v);
+            try { if (typeof Modal.close) Modal.close(); } catch (_) {}
+            try { App.renderCurrent(); } catch (_) {}
+          });
+        } else {
+          const v = window.prompt('Пам\'ятний момент', cur);
+          if (v !== null && typeof CoachTools !== 'undefined' && CoachTools.editGiftNote) {
+            CoachTools.editGiftNote(uid, v);
+            try { App.renderCurrent(); } catch (_) {}
+          }
+        }
+        return;
+      }
+      if (action === 'toggle-attach-gift') {
+        e.preventDefault(); e.stopPropagation();
+        const uid = t.dataset.giftUid;
+        if (uid && typeof CoachTools !== 'undefined' && CoachTools.toggleAttachGift) {
+          CoachTools.toggleAttachGift(uid);
+          try { if (typeof Modal.close) Modal.close(); } catch (_) {}
+          try { App.renderCurrent(); } catch (_) {}
+        }
+        return;
+      }
+      if (action === 'delete-gift') {
+        e.preventDefault(); e.stopPropagation();
+        const uid = t.dataset.giftUid;
+        if (!uid) return;
+        const doDel = () => {
+          if (typeof CoachTools !== 'undefined' && CoachTools.deleteGift) CoachTools.deleteGift(uid);
+          try { if (typeof Modal.close) Modal.close(); } catch (_) {}
+          try { App.renderCurrent(); } catch (_) {}
+        };
+        if (typeof Modal !== 'undefined' && Modal.confirm) {
+          Modal.confirm('Видалити цей подарунок назавжди?', doDel);
+        } else if (window.confirm('Видалити цей подарунок назавжди?')) {
+          doDel();
+        }
         return;
       }
       if (action === 'set-featured-gift') {
@@ -2218,6 +2286,11 @@ const App = {
       if (action === 'coach-easter') {
         e.preventDefault(); e.stopPropagation();
         return this.openCoachCard();
+      }
+      if (action === 'open-coach-card') {
+        e.preventDefault(); e.stopPropagation();
+        if (typeof App !== 'undefined' && App.openCoachCard) App.openCoachCard();
+        return;
       }
       if (action === 'close-coach-card') {
         e.preventDefault(); e.stopPropagation();
