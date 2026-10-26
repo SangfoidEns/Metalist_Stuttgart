@@ -123,7 +123,7 @@ const Views = {
       let gifts = [];
       try {
         if (typeof CoachTools !== 'undefined' && CoachTools.playerGifts) {
-          gifts = CoachTools.playerGifts(person.id);
+          gifts = (CoachTools.playerGifts(person.id) || []).filter(g => g.attached !== false);
         }
       } catch (_) {}
       const acc = this._posAccent(person.position);
@@ -170,7 +170,7 @@ const Views = {
 
     return `
       <div class="club-profile">
-        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-p · full</div>
+        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-q · full</div>
 
         <!-- Telegram-style profile card (coach/player) -->
         ${(() => {
@@ -195,7 +195,7 @@ const Views = {
               const r = 52;
               const x = Math.cos(ang) * r;
               const y = Math.sin(ang) * r;
-              return '<span class="cp-gift-orb" style="transform:translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)" title="' + sanitize(g.label || '') + '">' + (g.ico || '★') + '</span>';
+              return '<span class="cp-gift-orb cp-gift-anim" style="--gi:' + i + ';transform:translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)" title="' + sanitize(g.label || '') + (g.note ? (' — ' + sanitize(g.note)) : '') + '">' + (g.ico || '★') + '</span>';
             }).join('') + '</div>') : ''}
           </div>
           <div class="cp-role-line"><span class="cp-role-kind">${pc.kind === 'coach' ? 'Тренер' : 'Гравець'}</span></div>
@@ -864,7 +864,7 @@ const Views = {
           ${catalog.map(g => '<button type="button" class="gift-award-btn" data-action="award-gift" data-player-id="' + p.id + '" data-gift-id="' + g.id + '"><span class="ico">' + g.ico + '</span>' + sanitize(g.label) + '</button>').join('')}
         </div>
         <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-          <button type="button" class="btn-p" data-action="add-moment" data-player-id="${p.id}">✍️ Памʼятний момент</button>
+          <p class="note-sm" style="margin:8px 0 0">Памʼятний підпис додається лише разом із подарунком (кнопки вище).</p>
           <button type="button" class="btn-s" data-action="edit-player-form" data-player-id="${p.id}">Редагувати анкету</button>
         </div>
       </div>`;
@@ -1327,7 +1327,7 @@ const Views = {
       <div class="card"><div class="ct">Про застосунок</div>
         <p style="font-size:12px;color:var(--muted);line-height:1.6">
           Тренерська платформа · МЕТАЛІСТ ШТУТГАРТ<br>
-          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-p<br>
+          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-q<br>
           localStorage · Telegram Cloud
         </p>
       </div>`;

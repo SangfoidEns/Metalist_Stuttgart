@@ -2456,17 +2456,26 @@ const BoardEngine = {
           <div class="btb-tray-sec">
             <div class="btb-tray-label">Поле та схема</div>
             <div class="btb-tray-row btb-tray-row-selects">
-              <select id="fieldViewSel" title="Вид поля">
-                <option value="full">Повне</option>
-                <option value="half">Половина</option>
-                <option value="attack">Атака</option>
-                <option value="defense">Захист</option>
-              </select>
-              <select id="schemeSel" title="Схема">
-                <option value="">Схема…</option>
-                ${Object.keys(typeof SCHEMES!=='undefined'?SCHEMES:{}).map(k => '<option value="'+k+'">'+k+'</option>').join('')}
-              </select>
+              <button type="button" class="btb-pick" id="fieldViewBtn" data-action="pick-field-view" title="Вид поля">
+                <span class="btb-pick-lb">Поле</span>
+                <span class="btb-pick-val" id="fieldViewVal">Повне</span>
+              </button>
+              <button type="button" class="btb-pick" id="schemePickBtn" data-action="pick-scheme" title="Тактична схема">
+                <span class="btb-pick-lb">Схема</span>
+                <span class="btb-pick-val" id="schemePickVal">Обрати…</span>
+              </button>
             </div>
+            <!-- fallback native (hidden) for accessibility -->
+            <select id="fieldViewSel" class="sr-only-select" aria-hidden="true" tabindex="-1">
+              <option value="full">Повне</option>
+              <option value="half">Половина</option>
+              <option value="attack">Атака</option>
+              <option value="defense">Захист</option>
+            </select>
+            <select id="schemeSel" class="sr-only-select" aria-hidden="true" tabindex="-1">
+              <option value="">Схема…</option>
+              ${Object.keys(typeof SCHEMES!=='undefined'?SCHEMES:{}).map(k => '<option value="'+k+'">'+k+'</option>').join('')}
+            </select>
           </div>
           <div class="btb-tray-sec">
             <div class="btb-tray-label">Анімація</div>
@@ -2487,19 +2496,32 @@ const BoardEngine = {
       top.innerHTML += '';
     }
 
+    const fvLabels = { full: 'Повне', half: 'Половина', attack: 'Атака', defense: 'Захист' };
     const fv = document.getElementById('fieldViewSel');
+    const curFv = (Store.get().activeBoard && Store.get().activeBoard.fieldView) || 'full';
     if (fv) {
-      fv.value = Store.get().activeBoard.fieldView || 'full';
+      fv.value = curFv;
       fv.onchange = () => {
         Store.get().activeBoard.fieldView = fv.value;
         BoardEngine.drawField(fv.value);
         BoardEngine.renderTokens();
         BoardEngine.renderDrawings();
         BoardEngine.fitField();
+        const lab = document.getElementById('fieldViewVal');
+        if (lab) lab.textContent = fvLabels[fv.value] || fv.value;
       };
     }
+    const fvLab = document.getElementById('fieldViewVal');
+    if (fvLab) fvLab.textContent = fvLabels[curFv] || curFv;
     const ss = document.getElementById('schemeSel');
-    if (ss) ss.onchange = () => { if (ss.value) BoardEngine.applyScheme(ss.value); };
+    if (ss) ss.onchange = () => {
+      if (ss.value) {
+        BoardEngine.applyScheme(ss.value);
+        const lab = document.getElementById('schemePickVal');
+        if (lab) lab.textContent = ss.value;
+        try { Toast.show('Схема: ' + ss.value, 'ok'); } catch (_) {}
+      }
+    };
     // Sync tray / palette body classes after every toolbar re-render
     try {
       document.body.classList.toggle('tools-tray-open', !!ab.toolsTrayOpen);

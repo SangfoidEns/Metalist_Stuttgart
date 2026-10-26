@@ -7279,3 +7279,105 @@ body.board-on:not(.mode-board-focus) > #btbToolsTray {
 }
 .coach-card-fifa .cc-stat span { font-size: 9px !important; }
 .coach-card-fifa .cc-stat b { font-size: 12px !important; }
+
+/* ===== 2026.10.24-q scheme picker + gifts orbit + selects ===== */
+.btb-pick {
+  flex: 1 1 48%;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.08);
+  color: #f2f5f8 !important;
+  cursor: pointer;
+  text-align: left;
+}
+.btb-pick-lb { font-size: 10px; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 0.04em; }
+.btb-pick-val { font-size: 14px; font-weight: 700; color: #f0c14b !important; }
+.sr-only-select {
+  position: absolute !important;
+  width: 1px !important; height: 1px !important;
+  opacity: 0 !important; pointer-events: none !important;
+  left: -9999px !important;
+}
+
+.scheme-picker { max-height: 60vh; overflow: auto; }
+.scheme-pick-group { margin-bottom: 14px; }
+.scheme-pick-title {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;
+}
+.scheme-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+.scheme-pick-btn {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: #f2f5f8 !important;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+.scheme-pick-btn:active {
+  background: rgba(240,193,75,0.2);
+  border-color: #f0c14b;
+  color: #f0c14b !important;
+}
+
+/* native select safety if still used */
+.btb-tray select,
+.btb-tray-row-selects select,
+#schemeSel, #fieldViewSel {
+  color-scheme: dark;
+  background: #1a1f2a !important;
+  color: #f2f5f8 !important;
+}
+.btb-tray select option,
+#schemeSel option, #fieldViewSel option {
+  background: #1a1f2a !important;
+  color: #f2f5f8 !important;
+}
+
+/* gift orbit animation */
+.cp-gift-orbit { z-index: 3; }
+.cp-gift-anim {
+  animation: giftPulse 2.4s ease-in-out infinite;
+  animation-delay: calc(var(--gi, 0) * 0.18s);
+}
+@keyframes giftPulse {
+  0%, 100% { transform: translate(var(--tx, 0), var(--ty, 0)) scale(1); opacity: 1; }
+  50% { transform: translate(var(--tx, 0), var(--ty, 0)) scale(1.12); opacity: 0.92; }
+}
+/* use left/top already; pulse via filter */
+.cp-gift-orb.cp-gift-anim {
+  animation: giftGlow 2.2s ease-in-out infinite;
+  animation-delay: calc(var(--gi, 0) * 0.15s);
+}
+@keyframes giftGlow {
+  0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.35); filter: brightness(1); }
+  50% { box-shadow: 0 0 14px rgba(240,193,75,0.55); filter: brightness(1.15); }
+}
+
+.compare-card select#playerCompareSel {
+  color-scheme: dark;
+  background: #12161e !important;
+  color: #f2f5f8 !important;
+  border: 1px solid rgba(240,193,75,0.35);
+  min-height: 44px;
+  border-radius: 10px;
+  width: 100%;
+  font-size: 15px;
+}
+.compare-card select#playerCompareSel option {
+  background: #12161e;
+  color: #f2f5f8;
+}

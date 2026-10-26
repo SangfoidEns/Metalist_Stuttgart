@@ -286,6 +286,9 @@ const StorageManager = {
     if (Array.isArray(data.gifts)) base.gifts = data.gifts;
     else base.gifts = base.gifts || [];
     if (Array.isArray(data.moments)) base.moments = data.moments;
+    if (Array.isArray(data.gifts)) base.gifts = data.gifts;
+    if (!Array.isArray(base.gifts)) base.gifts = [];
+    if (!Array.isArray(base.moments)) base.moments = [];
     else base.moments = base.moments || [];
     base.schemaVersion = SCHEMA_VERSION;
     return base;
