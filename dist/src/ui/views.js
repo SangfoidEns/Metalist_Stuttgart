@@ -81,14 +81,33 @@ const Views = {
 
 
   /** Telegram-style gifts: scatter around avatar (not on face), expand animation */
+
+  _giftStrip(gifts) {
+    const list = (gifts || []).filter(Boolean);
+    if (!list.length) return '';
+    const show = list.slice(0, 12);
+    return '<div class="tg-gift-strip" aria-label="Подарунки">' +
+      show.map(g => {
+        const rar = g.rarity || 'common';
+        const hue = g.hue != null ? g.hue : 42;
+        const title = sanitize((g.label || '') + (g.note ? (' — ' + g.note) : ''));
+        return '<button type="button" class="tg-gift-strip-item rarity-' + rar +
+          '" style="--art-hue:' + hue + '" title="' + title +
+          '" data-action="inspect-artifact" data-gift-uid="' + (g.id || '') +
+          '" data-gift-id="' + (g.giftId || '') + '">' +
+          '<span class="nft-art-ico">' + (g.ico || '★') + '</span></button>';
+      }).join('') +
+      (list.length > 12 ? ('<span class="tg-gift-more">+' + (list.length - 12) + '</span>') : '') +
+      '</div>';
+  },
+
   _tgGiftCloud(gifts, radiusScale, mode) {
     // mode: 'full' | 'right3' | 'mini3'
     // Always show attached gifts around avatar (Telegram-style scatter)
-    let list = (gifts || []).filter(g => g && g.attached !== false);
-    // If coach marked gifts without attached flag, still show them
-    if (!list.length && gifts && gifts.length) {
-      list = gifts.filter(Boolean);
-    }
+    let list = (gifts || []).filter(Boolean);
+    // Prefer attached; if none flagged, show all (legacy data)
+    const attached = list.filter(g => g.attached !== false);
+    if (attached.length) list = attached;
     if (!list.length) return '';
     const sc = radiusScale != null ? radiusScale : 1;
     let slots, take;
@@ -236,7 +255,9 @@ const Views = {
       let gifts = [];
       try {
         if (typeof CoachTools !== 'undefined' && CoachTools.playerGifts) {
-          gifts = (CoachTools.playerGifts(person.id) || []).filter(g => g.attached !== false);
+          gifts = CoachTools.playerGifts(person.id) || [];
+        } else {
+          gifts = (s.gifts || []).filter(g => g.playerId === person.id);
         }
       } catch (_) {}
       const acc = this._posAccent(person.position);
@@ -283,7 +304,7 @@ const Views = {
 
     return `
       <div class="club-profile">
-        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-y · full</div>
+        <div class="app-build-tag" aria-hidden="true">build 2026.10.27-a · full</div>
 
         <!-- Telegram-style profile card (coach/player) -->
         ${(() => {
@@ -305,6 +326,7 @@ const Views = {
             </button>
             ${this._tgGiftCloud(pc.gifts, 1.15, 'full')}
           </div>
+          ${this._giftStrip(pc.gifts)}
           <div class="cp-role-line"><span class="cp-role-kind">${pc.kind === 'coach' ? 'Тренер' : 'Гравець'}</span></div>
           <h1 class="cp-title cp-title-name">${sanitize(pc.name)}${this._giftStatusBadge(pc.gifts)}</h1>
           <div class="cp-role-badge" ${pc.kind === 'coach' ? 'data-action="coach-easter" role="button" title="Утримуйте 1с · картка тренера"' : ''} style="border-color:var(--pos-ring);color:var(--pos-ring);cursor:${pc.kind === 'coach' ? 'pointer' : 'default'}">${sanitize(pc.pos)}</div>
@@ -803,7 +825,9 @@ const Views = {
     let meGifts = [];
     try {
       if (me && typeof CoachTools !== 'undefined' && CoachTools.playerGifts) {
-        meGifts = (CoachTools.playerGifts(me.id) || []).filter(g => g.attached !== false);
+        meGifts = CoachTools.playerGifts(me.id) || [];
+      } else if (me) {
+        meGifts = ((Store.get().gifts || []).filter(g => g.playerId === me.id));
       }
     } catch (_) {}
     const pc = me ? {
@@ -835,6 +859,7 @@ const Views = {
             </button>
             ${this._tgGiftCloud(pc.gifts, 1.15, 'full')}
           </div>
+          ${this._giftStrip(pc.gifts)}
           <div class="cp-role-line"><span class="cp-role-kind">${pc.kind === 'coach' ? 'Тренер' : 'Гравець'}</span></div>
           <h1 class="cp-title cp-title-name">${sanitize(pc.name)}${this._giftStatusBadge(pc.gifts)}</h1>
           <div class="cp-role-badge" style="border-color:var(--pos-ring);color:var(--pos-ring)">${sanitize(pc.pos)}</div>
@@ -1616,7 +1641,7 @@ const Views = {
       <div class="card"><div class="ct">Про застосунок</div>
         <p style="font-size:12px;color:var(--muted);line-height:1.6">
           Тренерська платформа · МЕТАЛІСТ ШТУТГАРТ<br>
-          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-y<br>
+          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.27-a<br>
           localStorage · Telegram Cloud
         </p>
       </div>`;
