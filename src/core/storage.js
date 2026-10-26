@@ -286,9 +286,6 @@ const StorageManager = {
     if (Array.isArray(data.gifts)) base.gifts = data.gifts;
     else base.gifts = base.gifts || [];
     if (Array.isArray(data.moments)) base.moments = data.moments;
-    if (Array.isArray(data.gifts)) base.gifts = data.gifts;
-    if (!Array.isArray(base.gifts)) base.gifts = [];
-    if (!Array.isArray(base.moments)) base.moments = [];
     else base.moments = base.moments || [];
     base.schemaVersion = SCHEMA_VERSION;
     return base;
@@ -299,12 +296,6 @@ const StorageManager = {
     let status = p.status || p.healthStatus || 'available';
     if (status === 'healthy') status = 'available';
     if (status === 'recovery') status = 'rehab';
-    // photoUrl / birthDate ОБОВ'ЯЗКОВО зберігаємо (раніше губились при load/migrate)
-    let photoUrl = p.photoUrl || p.photo || p.avatar || '';
-    if (photoUrl && typeof photoUrl === 'string' && photoUrl.length > 1200000) {
-      // захист від гігантських dataURL у storage
-      photoUrl = photoUrl.slice(0, 0); // drop — буде перезавантажено
-    }
     return {
       id: p.id || uid(),
       firstName: p.firstName || '',
@@ -324,11 +315,7 @@ const StorageManager = {
       tags: p.tags || [],
       telegramUsername: (p.telegramUsername || p.tgUsername || '').replace(/^@/, ''),
       telegramId: p.telegramId || p.tgId || null,
-      phone: p.phone || '',
-      photoUrl: photoUrl || '',
-      birthDate: p.birthDate || p.birthday || '',
-      isStarter: p.isStarter !== false && (p.group !== 'reserve'),
-      squadRole: p.squadRole || (p.group === 'reserve' ? 'reserve' : 'starter')
+      phone: p.phone || ''
     };
   },
 
@@ -377,21 +364,11 @@ const StorageManager = {
 
   buildExportPayload() {
     const s = Store.get();
-    // Глибока копія players, щоб photoUrl точно потрапив у JSON
-    const players = (s.players || []).map(p => ({
-      ...p,
-      photoUrl: p.photoUrl || '',
-      birthDate: p.birthDate || ''
-    }));
     return {
       schemaVersion: SCHEMA_VERSION,
       exportedAt: new Date().toISOString(),
-      settings: Object.assign({}, s.settings || {}, {
-        coachPhoto: (s.settings && s.settings.coachPhoto) || '',
-        coachName: (s.settings && s.settings.coachName) || '',
-        coachStats: (s.settings && s.settings.coachStats) || { appMs: 0, boardMs: 0 }
-      }),
-      players,
+      settings: s.settings,
+      players: s.players,
       trainings: s.trainings,
       exercises: s.exercises,
       boards: s.boards,

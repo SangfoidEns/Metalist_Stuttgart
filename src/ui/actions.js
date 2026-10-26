@@ -645,57 +645,21 @@ const Actions = {
     const fileInp = document.getElementById('pePhotoFile');
     const file = fileInp && fileInp.files && fileInp.files[0];
     if (file && file.type.startsWith('image/')) {
-      Actions._compressImageFile(file, 512, 0.72).then(dataUrl => {
-        if (dataUrl) {
-          p.photoUrl = dataUrl;
-          Toast.show('Фото збережено (' + Math.round(dataUrl.length / 1024) + ' КБ)', 'ok');
-        } else {
-          Toast.show('Не вдалося обробити фото', 'warn');
-        }
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          // compress large images: keep data URL if < 400kb else leave URL field
+          const data = String(reader.result || '');
+          if (data.length < 450000) p.photoUrl = data;
+          else Toast.show('Фото велике — збережено URL якщо був', 'warn');
+        } catch (_) {}
         finish();
-      }).catch(() => finish());
+      };
+      reader.onerror = () => finish();
+      reader.readAsDataURL(file);
       return;
     }
-    // якщо в полі URL вже data: — теж зберігаємо
-    if (pePhotoVal && pePhotoVal.indexOf('data:image') === 0) p.photoUrl = pePhotoVal;
     finish();
-  },
-
-  /** Стиснення фото до JPEG dataURL (макс. side px, quality 0..1) */
-  _compressImageFile(file, maxSide, quality) {
-    maxSide = maxSide || 512;
-    quality = quality == null ? 0.72 : quality;
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onerror = () => resolve('');
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => {
-          try {
-            let w = img.naturalWidth || img.width;
-            let h = img.naturalHeight || img.height;
-            if (!w || !h) return resolve(String(reader.result || ''));
-            const scale = Math.min(1, maxSide / Math.max(w, h));
-            w = Math.max(1, Math.round(w * scale));
-            h = Math.max(1, Math.round(h * scale));
-            const canvas = document.createElement('canvas');
-            canvas.width = w; canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, w, h);
-            let out = canvas.toDataURL('image/jpeg', quality);
-            // якщо все ще велике — сильніше стискаємо
-            if (out.length > 280000) out = canvas.toDataURL('image/jpeg', 0.55);
-            if (out.length > 280000) out = canvas.toDataURL('image/jpeg', 0.4);
-            resolve(out);
-          } catch (e) {
-            resolve(String(reader.result || ''));
-          }
-        };
-        img.onerror = () => resolve(String(reader.result || ''));
-        img.src = String(reader.result || '');
-      };
-      reader.readAsDataURL(file);
-    });
   },
 
   openAttendance(trainingId) {
@@ -716,7 +680,7 @@ const Actions = {
       </div>`;
     }).join('');
     Modal.open('Відвідування · ' + sanitize(t.name), `
-      <p class="note-sm">Позначте присутніх і RPE (1–10). Можна заповнити і для <strong>минулих</strong> тренувань — нові гравці в списку теж зʼявляться тут.</p>
+      <p class="note-sm">Позначте присутніх і виставте індивідуальну інтенсивність (RPE 1–10). Це впливає на аналітику навантаження.</p>
       <div class="att-toolbar">
         <button type="button" class="btn btn-s btn-sm" id="attAllOn">Усі ✓</button>
         <button type="button" class="btn btn-s btn-sm" id="attAllOff">Нікого</button>
@@ -972,21 +936,13 @@ const Actions = {
 
   saveSettings() {
     const s = Store.get().settings;
-    // IDs must match settings form in views.js
-    const clubEl = document.getElementById('setClubName') || document.getElementById('setName');
-    const shortEl = document.getElementById('setClubShort') || document.getElementById('setShort');
-    const priEl = document.getElementById('setPrimary') || document.getElementById('setPri');
-    const accEl = document.getElementById('setAccent') || document.getElementById('setAcc');
-    if (clubEl && clubEl.value.trim()) s.clubName = clubEl.value.trim();
-    if (shortEl && shortEl.value.trim()) s.clubShort = shortEl.value.trim();
-    if (priEl && priEl.value) s.primary = priEl.value;
-    if (accEl && accEl.value) s.accent = accEl.value;
-    const durEl = document.getElementById('setDur') || document.getElementById('setDefaultDuration');
-    const intEl = document.getElementById('setInt') || document.getElementById('setDefaultIntensity');
-    if (durEl) s.defaultDuration = +durEl.value || 90;
-    if (intEl) s.defaultIntensity = +intEl.value || 6;
-    const autoEl = document.getElementById('setAuto') || document.getElementById('setAutosave');
-    if (autoEl) s.autosave = autoEl.checked !== false;
+    s.clubName = document.getElementById('setName')?.value || s.clubName;
+    s.clubShort = document.getElementById('setShort')?.value || s.clubShort;
+    s.primary = document.getElementById('setPri')?.value || s.primary;
+    s.accent = document.getElementById('setAcc')?.value || s.accent;
+    s.defaultDuration = +document.getElementById('setDur')?.value || 90;
+    s.defaultIntensity = +document.getElementById('setInt')?.value || 6;
+    s.autosave = document.getElementById('setAuto')?.checked !== false;
     // Social for guests
     if (!s.social) s.social = {};
     const tgCh = document.getElementById('setTgChannel')?.value?.trim();
@@ -1002,37 +958,15 @@ const Actions = {
     }
 
     s.sound = document.getElementById('setSound')?.checked !== false;
-    const coachNameEl = document.getElementById('setCoachName');
-    if (coachNameEl && coachNameEl.value.trim()) s.coachName = coachNameEl.value.trim();
-    const coachPhotoUrl = document.getElementById('setCoachPhoto')?.value?.trim();
-    if (coachPhotoUrl) s.coachPhoto = coachPhotoUrl;
-
     const logoFile = document.getElementById('setLogo')?.files?.[0];
-    const coachFile = document.getElementById('setCoachPhotoFile')?.files?.[0];
-
-    const finishSave = () => {
-      StorageManager.save();
-      App.applyBranding();
-      Toast.show('Налаштування збережено', 'ok');
-      try { App.renderCurrent(); } catch (_) {}
-    };
-
-    const tasks = [];
     if (logoFile) {
-      tasks.push(new Promise(res => {
-        const reader = new FileReader();
-        reader.onload = ev => { s.logoData = ev.target.result; res(); };
-        reader.onerror = () => res();
-        reader.readAsDataURL(logoFile);
-      }));
+      const reader = new FileReader();
+      reader.onload = ev => { s.logoData = ev.target.result; StorageManager.save(); App.applyBranding(); };
+      reader.readAsDataURL(logoFile);
     }
-    if (coachFile && coachFile.type.startsWith('image/')) {
-      tasks.push(Actions._compressImageFile(coachFile, 512, 0.72).then(data => {
-        if (data) s.coachPhoto = data;
-      }).catch(() => {}));
-    }
-    if (tasks.length) Promise.all(tasks).then(finishSave);
-    else finishSave();
+    StorageManager.save();
+    App.applyBranding();
+    Toast.show('Налаштування збережено', 'ok');
   }
 };
 
