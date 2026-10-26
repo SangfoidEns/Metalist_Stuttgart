@@ -764,32 +764,42 @@ const App = {
         window.__playerCompareId = oid;
         window.__coachCompareId = oid;
       } catch (_) {}
-      // 1) Картка гравця в модалці (тренер)
+      // 1) FIFA / картка в модалці — оновити на місці
       try {
+        window.__fifaCompareId = oid;
+        window.__coachCompareId = oid;
+        window.__playerCompareId = oid;
         const modalRoot = document.getElementById('modalBody')
           || document.querySelector('.fifa-modal-wrap')
-          || document.querySelector('.mo-body');
-        if (modalRoot && typeof Views !== 'undefined' && Views.coachPlayerDetail) {
-          let pid = window.__coachCardPlayerId || null;
-          if (!pid) {
-            const host = modalRoot.querySelector('[data-compare-host]')
-              || modalRoot.querySelector('[data-player-id]');
-            pid = host && (host.getAttribute('data-compare-host') || host.getAttribute('data-player-id'));
+          || document.querySelector('.mo-body')
+          || document.querySelector('#modal .body');
+        let pid = window.__coachCardPlayerId || null;
+        if (!pid && modalRoot) {
+          const host = modalRoot.querySelector('[data-compare-host], [data-fifa-player], [data-player-id]');
+          pid = host && (host.getAttribute('data-compare-host') || host.getAttribute('data-fifa-player') || host.getAttribute('data-player-id'));
+        }
+        if (pid && typeof Views !== 'undefined' && typeof Modal !== 'undefined' && Modal.open) {
+          const p = (Store.get().players || []).find(x => x.id === pid);
+          const asCoach = typeof AuthManager !== 'undefined' && AuthManager.isCoach && AuthManager.isCoach();
+          let html = '';
+          let title = '';
+          if (asCoach && Views.coachPlayerDetail) {
+            title = 'Картка гравця · ' + ((p && (p.lastName || p.firstName)) || '');
+            html = '<div class="fifa-modal-wrap" data-compare-host="' + pid + '">' + Views.coachPlayerDetail(pid) + '</div>';
+          } else if (Views._fifaCard) {
+            const st = Views._playerStats ? Views._playerStats(pid) : {};
+            title = 'FIFA-картка · ' + ((p && (p.lastName || p.firstName)) || '');
+            html = '<div class="fifa-modal-wrap" data-compare-host="' + pid + '">' + Views._fifaCard(p, st) + '</div>';
           }
-          if (pid) {
-            const p = (Store.get().players || []).find(x => x.id === pid);
-            const title = 'Картка гравця · ' + ((p && (p.lastName || p.firstName)) || '');
-            const html = '<div class="fifa-modal-wrap" data-compare-host="' + pid + '">' + Views.coachPlayerDetail(pid) + '</div>';
-            if (typeof Modal !== 'undefined' && Modal.open) {
-              Modal.open(title, html, [{ label: 'Закрити', cls: 'btn-s', action: 'cancel' }]);
-              setTimeout(() => {
-                try {
-                  const s2 = document.getElementById('playerCompareSel');
-                  if (s2) { s2._msCmpBound = false; s2.value = oid; App._bindPlayerCompare(); }
-                } catch (_) {}
-              }, 40);
-              return;
-            }
+          if (html) {
+            Modal.open(title, html, [{ label: 'Закрити', cls: 'btn-s', action: 'cancel' }]);
+            setTimeout(() => {
+              try {
+                const s2 = document.getElementById('playerCompareSel');
+                if (s2) { s2._msCmpBound = false; s2.value = oid; App._bindPlayerCompare(); }
+              } catch (_) {}
+            }, 40);
+            return;
           }
         }
       } catch (err) { console.warn('[compare modal]', err); }
@@ -1895,10 +1905,20 @@ const App = {
             setTimeout(() => { try { const s2 = document.getElementById('playerCompareSel'); if (s2) s2._msCmpBound = false; App._bindPlayerCompare(); } catch (_) {} }, 40);
           }
         } else if (typeof Views !== 'undefined' && Views._fifaCard) {
+          window.__coachCardPlayerId = p.id;
+          window.__fifaCompareId = window.__fifaCompareId || '';
           const st = Views._playerStats ? Views._playerStats(p.id) : {};
           const html = Views._fifaCard(p, st);
           if (typeof Modal !== 'undefined' && Modal.open) {
-            Modal.open('FIFA-картка', '<div class="fifa-modal-wrap">' + html + '</div>', [{ label: 'Закрити', cls: 'btn-s', action: 'cancel' }]);
+            Modal.open('FIFA-картка · ' + (p.lastName || p.firstName || ''),
+              '<div class="fifa-modal-wrap" data-compare-host="' + p.id + '">' + html + '</div>',
+              [{ label: 'Закрити', cls: 'btn-s', action: 'cancel' }]);
+            setTimeout(() => {
+              try {
+                const s2 = document.getElementById('playerCompareSel');
+                if (s2) { s2._msCmpBound = false; App._bindPlayerCompare(); }
+              } catch (_) {}
+            }, 40);
           }
         }
         return;

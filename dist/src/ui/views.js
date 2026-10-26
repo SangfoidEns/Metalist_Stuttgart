@@ -170,7 +170,7 @@ const Views = {
 
     return `
       <div class="club-profile">
-        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-q · full</div>
+        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-r · full</div>
 
         <!-- Telegram-style profile card (coach/player) -->
         ${(() => {
@@ -348,6 +348,7 @@ const Views = {
 
   _fifaCard(p, stats) {
     if (!p) return '';
+    stats = stats || {};
     const st = p.status || 'available';
     const stLabel = ({ available: 'Здоровий', healthy: 'Здоровий', injured: 'Травмований', rehab: 'Відновлення', recovery: 'Відновлення' })[st] || st;
     const pos = p.position || '—';
@@ -365,17 +366,46 @@ const Views = {
       ? `<img class="fifa-avatar-img" src="${sanitize(photo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex')"/><span class="fifa-avatar-fallback" style="display:none">${sanitize(initials.toUpperCase())}</span>`
       : `<span>${sanitize(initials.toUpperCase())}</span>`;
 
+    // Подарунки на FIFA-картці
+    let gifts = [];
+    try {
+      if (typeof CoachTools !== 'undefined' && CoachTools.playerGifts) {
+        gifts = (CoachTools.playerGifts(p.id) || []).filter(g => g.attached !== false);
+      }
+    } catch (_) {}
+    const giftOrbit = gifts.length
+      ? ('<div class="fifa-gift-orbit" aria-hidden="true">' + gifts.slice(0, 8).map((g, i) => {
+          const ang = (i / Math.max(gifts.length, 1)) * Math.PI * 2 - Math.PI / 2;
+          const r = 40;
+          const x = Math.cos(ang) * r;
+          const y = Math.sin(ang) * r;
+          return '<span class="cp-gift-orb cp-gift-anim" style="--gi:' + i + ';transform:translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)" title="' + sanitize(g.label || '') + (g.note ? (' — ' + sanitize(g.note)) : '') + '">' + (g.ico || '★') + '</span>';
+        }).join('') + '</div>')
+      : '';
+    const giftRow = gifts.length
+      ? ('<div class="fifa-gifts">' + gifts.slice(0, 10).map(g =>
+          '<span class="fifa-gift-chip" title="' + sanitize(g.note || g.label || '') + '">' + (g.ico || '★') + ' ' + sanitize(g.label || '') + '</span>'
+        ).join('') + '</div>')
+      : '<div class="fifa-gifts fifa-gifts-empty"><span class="note-sm">Подарунків ще немає</span></div>';
+
+    // Порівняння — ТІЛЬКИ всередині FIFA-картки
+    const otherId = (typeof window !== 'undefined' && (window.__fifaCompareId || window.__coachCompareId || window.__playerCompareId)) || '';
+    const compareHtml = this._compareBlock(p, otherId);
+
     return `
-      <div class="fifa-card glass">
+      <div class="fifa-card glass" data-fifa-player="${p.id}" data-compare-host="${p.id}">
         <div class="fifa-shine"></div>
         <div class="fifa-top">
           <div class="fifa-ovr" style="border-color:${posColor}">
             <span class="fifa-ovr-num">${ovr}</span>
             <span class="fifa-pos" style="color:${posColor}">${sanitize(pos)}</span>
           </div>
-          <div class="fifa-avatar" style="background:linear-gradient(145deg,${posColor}55,${posColor}22)">
-            ${avatarInner}
-            ${cap}
+          <div class="fifa-avatar-wrap">
+            <div class="fifa-avatar" style="background:linear-gradient(145deg,${posColor}55,${posColor}22)">
+              ${avatarInner}
+              ${cap}
+            </div>
+            ${giftOrbit}
           </div>
           <div class="fifa-club">
             <div class="fifa-club-name">МЕТАЛІСТ</div>
@@ -395,6 +425,11 @@ const Views = {
           <div class="fifa-stat"><b>${p.load != null ? p.load : '—'}</b><span>Load</span></div>
           <div class="fifa-stat"><b>${p.age || '—'}</b><span>Вік</span></div>
         </div>
+        <div class="fifa-gifts-block">
+          <div class="fifa-gifts-title">Подарунки</div>
+          ${giftRow}
+        </div>
+        ${compareHtml}
       </div>`;
   },
 
@@ -625,7 +660,7 @@ const Views = {
       </div>
 
       ${me ? this._myStatsCharts(me, stats) : ''}
-      ${me ? this._compareBlock(me, (typeof window !== 'undefined' && window.__playerCompareId) || '') : ''}
+      <!-- порівняння лише у FIFA-картці -->
 
       <div class="dg">
         <div class="sc"><div class="lb">Наступне тренування</div><div class="vl" style="font-size:13px">${next ? sanitize(next.name) : '—'}</div><div class="sb">${next ? next.date + ' ' + (next.time || '') : ''}</div></div>
@@ -836,7 +871,7 @@ const Views = {
     if (!p) return '<div class="es">Гравець не знайдений</div>';
     const st = this._playerStats ? this._playerStats(p.id) : {};
     const fifa = this._fifaCard(p, st);
-    const compare = this._compareBlock(p, (typeof window !== 'undefined' && window.__coachCompareId) || '');
+    const compare = ''; /* порівняння всередині FIFA */
     let giftsHtml = '';
     try {
       const all = (typeof CoachTools !== 'undefined' && CoachTools.playerGifts) ? CoachTools.playerGifts(p.id) : [];
@@ -943,7 +978,7 @@ const Views = {
     }).join('');
 
     const isCoach = typeof AuthManager !== 'undefined' && AuthManager.isCoach && AuthManager.isCoach();
-    const compareBlock = this._compareBlock(list[0] || null, (typeof window !== 'undefined' && window.__coachCompareId) || window.__playerCompareId || '');
+    const compareBlock = ''; /* порівняння лише у FIFA */
 
     // Для гравців / гостей — картки профілів (як на головній), без редагування
     if (!isCoach) {
@@ -959,12 +994,28 @@ const Views = {
           : '<span class="cp-avatar-ph">' + sanitize(initials) + '</span>';
         const isMe = (typeof AuthManager !== 'undefined' && AuthManager.isLinkedPlayer && AuthManager.isLinkedPlayer(p))
           || (typeof AuthManager !== 'undefined' && AuthManager.matchesPlayer && AuthManager.matchesPlayer(p));
+        let gifs = [];
+        try {
+          if (typeof CoachTools !== 'undefined' && CoachTools.playerGifts)
+            gifs = (CoachTools.playerGifts(p.id) || []).filter(g => g.attached !== false).slice(0, 6);
+        } catch (_) {}
+        const giftOrbit = gifs.length
+          ? ('<div class="pl-card-gifts">' + gifs.map((g, i) => {
+              const ang = (i / Math.max(gifs.length, 1)) * Math.PI * 2 - Math.PI / 2;
+              const r = 34;
+              return '<span class="cp-gift-orb cp-gift-anim" style="--gi:' + i + ';transform:translate(' + (Math.cos(ang)*r).toFixed(1) + 'px,' + (Math.sin(ang)*r).toFixed(1) + 'px)">' + (g.ico || '★') + '</span>';
+            }).join('') + '</div>')
+          : '';
+        const giftLine = gifs.length
+          ? ('<div class="pl-card-giftline">' + gifs.map(g => '<span title="' + sanitize(g.label||'') + '">' + (g.ico||'★') + '</span>').join('') + '</div>')
+          : '';
         return '<div class="pl-card glass' + (isMe ? ' is-me' : '') + '" data-player-id="' + p.id + '" data-action="open-player-card" role="button" tabindex="0">' +
-          '<div class="pl-card-av" style="border-color:' + acc.ring + ';background:' + acc.bg + '">' + ph + '</div>' +
+          '<div class="pl-card-av-wrap"><div class="pl-card-av" style="border-color:' + acc.ring + ';background:' + acc.bg + '">' + ph + '</div>' + giftOrbit + '</div>' +
           '<div class="pl-card-body">' +
           '<div class="pl-card-name">#' + (p.number || '—') + ' ' + sanitize(name) + '</div>' +
           '<div class="pl-card-meta">' + sanitize(p.position || '') + ' · ' + role + '</div>' +
           '<div class="pl-card-att">Відвідуваність ' + att + '%</div>' +
+          giftLine +
           '</div></div>';
       }).join('');
       return `
@@ -1327,7 +1378,7 @@ const Views = {
       <div class="card"><div class="ct">Про застосунок</div>
         <p style="font-size:12px;color:var(--muted);line-height:1.6">
           Тренерська платформа · МЕТАЛІСТ ШТУТГАРТ<br>
-          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-q<br>
+          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-r<br>
           localStorage · Telegram Cloud
         </p>
       </div>`;
