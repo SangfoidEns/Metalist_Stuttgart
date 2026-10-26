@@ -7735,3 +7735,72 @@ body.board-on:not(.mode-board-focus) > #btbToolsTray {
   background: #12161e; color: #f2f5f8; border: 1px solid rgba(255,255,255,0.12);
   font-family: ui-monospace, monospace; font-size: 12px; padding: 10px;
 }
+
+/* Telegram gift expand */
+.tg-gift-cloud.tg-gift-expand { position:absolute; inset:0; pointer-events:none; z-index:4; overflow:visible; }
+.tg-gift-item {
+  position:absolute; left:50%; top:50%;
+  width:28px; height:28px; margin:-14px 0 0 -14px;
+  border-radius:50%;
+  display:grid; place-items:center;
+  background:radial-gradient(circle at 30% 30%, hsl(var(--art-hue,42),80%,55%), hsl(var(--art-hue,42),70%,35%));
+  border:1.5px solid rgba(255,255,255,0.45);
+  box-shadow:0 2px 8px rgba(0,0,0,0.35);
+  transform: translate(var(--gx,0), var(--gy,0)) scale(0.3);
+  opacity:0;
+  animation: tgGiftPop 0.45s cubic-bezier(.2,1.2,.4,1) forwards;
+  animation-delay: calc(var(--gi,0) * 0.06s);
+}
+.tg-gift-item .nft-art-ico { font-size:14px; line-height:1; }
+@keyframes tgGiftPop {
+  0% { transform: translate(0,0) scale(0.2); opacity:0; }
+  70% { opacity:1; }
+  100% { transform: translate(var(--gx), var(--gy)) scale(1); opacity:1; }
+}
+.mode-right3 .tg-gift-item { width:32px; height:32px; margin:-16px 0 0 -16px; }
+.mode-mini3 .tg-gift-item { width:22px; height:22px; margin:-11px 0 0 -11px; }
+.mode-mini3 .tg-gift-item .nft-art-ico { font-size:11px; }
+
+.fifa-club { display:flex; align-items:center; gap:8px; }
+.fifa-club-mark { width:28px; height:28px; object-fit:contain; }
+.fifa-featured-pick { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:8px; }
+.gift-feat-btn {
+  width:32px; height:32px; border-radius:50%; border:1px solid rgba(255,255,255,0.2);
+  background:rgba(255,255,255,0.06); font-size:16px; cursor:pointer;
+}
+.gift-feat-btn.on { border-color:#f0c14b; box-shadow:0 0 0 2px rgba(240,193,75,0.35); }
+
+.compare-chart-wrap { margin-top:12px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.08); }
+.compare-svg { display:block; width:100%; max-width:360px; margin:0 auto; }
+
+.squad-view-toggle { display:inline-flex; gap:4px; margin:0 8px; }
+.squad-view-toggle .btn-s.on { background:rgba(240,193,75,0.2); border-color:#f0c14b; color:#f0c14b; }
+
+.coach-stats-strip {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:8px;
+  padding:10px 12px; margin:8px 0 12px; border-radius:14px;
+}
+.css-item { text-align:center; }
+.css-item b { display:block; font-size:15px; color:#f0c14b; }
+.css-item span { font-size:10px; color:var(--muted); }
+
+/* Avatar chips on board — 2× size */
+.pt-avatar-chip.pt-bench-style {
+  width:80px !important; height:80px !important;
+  margin-left:-40px !important; margin-top:-40px !important;
+}
+.pt-avatar-chip .pt-wrap { width:80px !important; height:80px !important; }
+.pt-avatar-chip .pt-avatar {
+  width:56px !important; height:56px !important;
+  overflow:hidden; border-radius:50%;
+}
+.pt-avatar-chip .pt-photo {
+  width:100%; height:100%; object-fit:cover; border-radius:50%;
+  position:absolute; inset:0;
+}
+.pt-avatar-chip .pt-num {
+  position:relative; z-index:2; font-size:11px !important;
+  text-shadow:0 1px 3px #000;
+  background:rgba(0,0,0,0.45); border-radius:4px; padding:0 3px;
+}
+.pt-avatar-chip .pt-load-ring { width:80px !important; height:80px !important; }

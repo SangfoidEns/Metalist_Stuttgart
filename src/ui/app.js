@@ -2081,6 +2081,62 @@ const App = {
         } catch (_) { try { App.renderCurrent(); } catch (__) {} }
         return;
       }
+      if (action === 'set-featured-gift') {
+        e.preventDefault(); e.stopPropagation();
+        const pid = t.dataset.playerId;
+        const gid = t.dataset.giftUid;
+        if (pid && gid && typeof CoachTools !== 'undefined' && CoachTools.setFeaturedGift) {
+          CoachTools.setFeaturedGift(pid, gid);
+          Toast.show('Подарунок біля імені оновлено', 'ok');
+          // refresh open FIFA modal if any
+          try {
+            window.__coachCardPlayerId = pid;
+            if (typeof Views !== 'undefined' && Views._fifaCard) {
+              const p = (Store.get().players || []).find(x => x.id === pid);
+              const st = Views._playerStats ? Views._playerStats(pid) : {};
+              const asCoach = typeof AuthManager !== 'undefined' && AuthManager.isCoach && AuthManager.isCoach();
+              let html = asCoach && Views.coachPlayerDetail
+                ? Views.coachPlayerDetail(pid)
+                : Views._fifaCard(p, st);
+              if (typeof Modal !== 'undefined' && Modal.open) {
+                Modal.open((asCoach ? 'Картка гравця' : 'FIFA-картка') + ' · ' + ((p && (p.lastName || p.firstName)) || ''),
+                  '<div class="fifa-modal-wrap" data-compare-host="' + pid + '">' + html + '</div>',
+                  [{ label: 'Закрити', cls: 'btn-s', action: 'cancel' }]);
+              }
+            }
+          } catch (_) {}
+          try { App.renderCurrent(); } catch (_) {}
+        }
+        return;
+      }
+      if (action === 'squad-view') {
+        e.preventDefault(); e.stopPropagation();
+        window.__squadViewMode = t.dataset.mode || 'list';
+        try { App.renderCurrent(); } catch (_) {}
+        return;
+      }
+      if (action === 'toggle-avatar-chips') {
+        e.preventDefault(); e.stopPropagation();
+        const s = Store.get();
+        if (!s.activeBoard) s.activeBoard = {};
+        s.activeBoard.useAvatars = !s.activeBoard.useAvatars;
+        try { StorageManager.save(); } catch (_) {}
+        if (typeof BoardEngine !== 'undefined') {
+          if (BoardEngine.renderTokens) BoardEngine.renderTokens();
+          if (BoardEngine.renderToolbar) BoardEngine.renderToolbar();
+        }
+        Toast.show(s.activeBoard.useAvatars ? 'Аватар-фішки увімкнено' : 'Звичайні фішки', 'ok');
+        return;
+      }
+      if (action === 'all-to-bench' || action === 'rest-to-bench') {
+        e.preventDefault(); e.stopPropagation();
+        // Тільки гравці зі складу, яких ЩЕ НЕМАЄ на полі/лавці — на лавку
+        if (typeof BoardEngine !== 'undefined' && BoardEngine.sendAvailableToBench) {
+          const n = BoardEngine.sendAvailableToBench();
+          Toast.show(n > 0 ? (n + ' гравців зі списку на лавці') : 'Немає вільних у списку', n > 0 ? 'ok' : 'warn');
+        }
+        return;
+      }
       if (action === 'award-gift') {
         e.preventDefault(); e.stopPropagation();
         if (typeof AuthManager !== 'undefined' && AuthManager.isCoach && !AuthManager.isCoach()) {

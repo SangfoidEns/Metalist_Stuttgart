@@ -1017,16 +1017,20 @@ const BoardEngine = {
     const list = available.map(p => {
       const r = p.readiness != null ? p.readiness : (p.condition != null ? p.condition : 80);
       const st = p.status === 'injured' ? ' 🩹' : (p.status === 'available' ? '' : ' · ' + p.status);
+      const grp = p.group === 'reserve' ? ' · Резерв' : '';
       return `<button type="button" class="btn btn-s roster-pick" style="width:100%;margin:4px 0;text-align:left;min-height:44px"
         data-pick-player="${p.id}">
-        <strong>#${p.number}</strong> ${sanitize(p.firstName)} ${sanitize(p.lastName)}${st}
+        <strong>#${p.number}</strong> ${sanitize(p.firstName)} ${sanitize(p.lastName)}${st}${grp}
         <span style="float:right;color:var(--muted);font-size:12px">${sanitize(p.position)} · ${r}%</span>
       </button>`;
     }).join('');
     Modal.open(
       'Склад МЕТАЛІСТ ШТУТГАРТ',
-      `<p class="note-sm" style="margin-bottom:8px">Оберіть гравця для фішки на дошці</p>
-       <div style="max-height:50vh;overflow:auto">${list}</div>`,
+      `<p class="note-sm" style="margin-bottom:8px">Оберіть гравця на поле · або відправте всіх вільних на лавку</p>
+       <button type="button" class="btn btn-p" id="rosterAllToBenchBtn" style="width:100%;margin-bottom:10px;min-height:44px">
+         ⬇ Усіх зі списку на лавку (${available.length})
+       </button>
+       <div style="max-height:45vh;overflow:auto">${list}</div>`,
       [{ label: 'Скасувати', cls: 'btn-s', action: 'cancel' }]
     );
     const self = this;
@@ -1037,7 +1041,59 @@ const BoardEngine = {
           Modal.close();
         });
       });
+      const allBtn = document.getElementById('rosterAllToBenchBtn');
+      if (allBtn) {
+        allBtn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const n = self.sendAvailableToBench();
+          Modal.close();
+          if (n > 0) Toast.show(n + ' гравців на лавці', 'ok');
+          else Toast.show('Немає вільних гравців', 'warn');
+        });
+      }
     }, 30);
+  },
+
+  /** Лише ті, кого ще немає на полі / на лавці — додати на лавку */
+  sendAvailableToBench() {
+    const s = Store.get();
+    if (!s.activeBoard) return 0;
+    if (!Array.isArray(s.activeBoard.objects)) s.activeBoard.objects = [];
+    const used = new Set(
+      (s.activeBoard.objects || [])
+        .filter(o => o.type === 'player' && o.playerId)
+        .map(o => o.playerId)
+    );
+    const available = (s.players || []).filter(p => !used.has(p.id));
+    if (!available.length) return 0;
+    const chipColor = s.activeBoard.drawColor || null;
+    available.forEach((roster) => {
+      const isGk = String(roster.position || '').toUpperCase() === 'GK';
+      const col = isGk ? this.GK_CHIP_COLOR : (chipColor || undefined);
+      s.activeBoard.objects.push({
+        id: uid(), type: 'player', x: 0, y: 0,
+        number: roster.number,
+        label: roster.lastName || '',
+        team: 'own',
+        playerId: roster.id,
+        readiness: roster.readiness != null ? roster.readiness : (roster.condition != null ? roster.condition : 80),
+        load: roster.load != null ? roster.load : 0,
+        position: roster.position || null,
+        status: roster.status || null,
+        isCaptain: !!roster.isCaptain,
+        chipColor: col,
+        color: col,
+        onBench: true,
+        rotation: 0, locked: false, visible: true
+      });
+    });
+    this.pushHistory();
+    try { StorageManager.save(); } catch (_) {}
+    this.render();
+    try { if (this.renderBenchPanel) this.renderBenchPanel(); } catch (_) {}
+    try { TelegramManager.haptic('medium'); } catch (_) {}
+    return available.length;
   },
 
   placeRosterPlayer(playerId, x, y) {
@@ -2062,10 +2118,25 @@ const BoardEngine = {
       if (isGk) customBg = this.GK_CHIP_COLOR;
       const bgStyle = customBg ? `background:${customBg} !important;` : '';
       // Контейнер 40×40 як bench-avatar-wrap; позиція — центр у % поля
-      html += `<div class="${cls}${extraCls} pt-bench-style" data-id="${o.id}" data-r="14"${readyAttr} ` +
+      const useAv = !!(Store.get().activeBoard && Store.get().activeBoard.useAvatars);
+      let photoUrl = '';
+      if (useAv && o.playerId) {
+        try {
+          const pl = (Store.get().players || []).find(x => x.id === o.playerId);
+          if (pl) {
+            photoUrl = pl.photoUrl || pl.telegramPhotoUrl || '';
+          }
+        } catch (_) {}
+      }
+      if (useAv && !photoUrl && o.photoUrl) photoUrl = o.photoUrl;
+      const avCls = useAv ? ' pt-avatar-chip' : '';
+      const avInner = (useAv && photoUrl)
+        ? `<img class="pt-photo" src="${sanitize(photoUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'"/><span class="pt-num">${o.number || ''}</span>`
+        : `<span class="pt-num">${o.number || ''}</span>`;
+      html += `<div class="${cls}${extraCls} pt-bench-style${avCls}" data-id="${o.id}" data-r="${useAv ? 28 : 14}"${readyAttr} ` +
         `style="left:${pct.left}%;top:${pct.top}%;${bgStyle ? '' : ''}" ` +
         `title="${sanitize(titleName + titleExtra)}">` +
-        `<div class="pt-wrap">${ringSvg}<div class="pt-avatar" style="${bgStyle}"><span class="pt-num">${o.number || ''}</span></div></div>` +
+        `<div class="pt-wrap">${ringSvg}<div class="pt-avatar" style="${bgStyle}">${avInner}</div></div>` +
         `${statusBadge}${label}</div>`;
     });
     layer.innerHTML = html;
@@ -2476,6 +2547,13 @@ const BoardEngine = {
               <option value="">Схема…</option>
               ${Object.keys(typeof SCHEMES!=='undefined'?SCHEMES:{}).map(k => '<option value="'+k+'">'+k+'</option>').join('')}
             </select>
+          </div>
+          <div class="btb-tray-sec">
+            <div class="btb-tray-label">Склад на полі</div>
+            <div class="btb-tray-row">
+              <button type="button" class="tb ${(Store.get().activeBoard&&Store.get().activeBoard.useAvatars)?'on':''}" data-action="toggle-avatar-chips" title="Аватар-фішки (×2)">👤</button>
+              <button type="button" class="tb" data-action="rest-to-bench" title="Вільних зі складу на лавку">⬇ список→лавка</button>
+            </div>
           </div>
           <div class="btb-tray-sec">
             <div class="btb-tray-label">Анімація</div>

@@ -354,6 +354,24 @@ CoachTools.addMoment = function (playerId, text, trainingId) {
   return m;
 };
 
+CoachTools.setFeaturedGift = function (playerId, giftInstanceId) {
+  const s = Store.get();
+  if (!s.gifts) s.gifts = [];
+  (s.gifts || []).forEach(g => {
+    if (g.playerId === playerId) g.featured = (g.id === giftInstanceId);
+  });
+  try { StorageManager.save(); } catch (_) {}
+  return true;
+};
+CoachTools.getFeaturedGift = function (playerId) {
+  const list = (Store.get().gifts || []).filter(g => g.playerId === playerId && g.attached !== false);
+  const f = list.find(g => g.featured);
+  if (f) return f;
+  // fallback: highest rarity
+  const rank = { legendary: 4, epic: 3, rare: 2, common: 1 };
+  list.sort((a, b) => (rank[b.rarity] || 0) - (rank[a.rarity] || 0));
+  return list[0] || null;
+};
 CoachTools.playerGifts = function (playerId) {
   return (Store.get().gifts || []).filter(g => g.playerId === playerId);
 };
