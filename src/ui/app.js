@@ -2093,6 +2093,7 @@ const App = {
         if (!g) return;
         const rar = (typeof CoachTools !== 'undefined' && CoachTools.RARITY_LABEL && CoachTools.RARITY_LABEL[g.rarity]) || g.rarity || '';
         const isNeural = g.special === 'neural-horse' || g.giftId === 'neural_horse_tester';
+        const isGolden = g.special === 'golden-ball' || g.giftId === 'tyshchenko_first_golden_ball';
         const isCoach = typeof AuthManager !== 'undefined' && AuthManager.isCoach && AuthManager.isCoach();
         const attached = g.attached !== false;
         let coachBtns = '';
@@ -2107,9 +2108,9 @@ const App = {
             '<button type="button" class="btn btn-s btn-sm btn-danger" data-action="delete-gift" data-gift-uid="' + uid + '">🗑 Видалити</button>' +
             '</div>';
         }
-        const html = '<div class="artifact-inspect' + (isNeural ? ' neural-inspect' : '') + '">' +
+        const html = '<div class="artifact-inspect' + (isNeural ? ' neural-inspect' : '') + (isGolden ? ' golden-inspect' : '') + '">' +
           '<div class="artifact-inspect-stage">' +
-          '<div class="artifact-hologram' + (isNeural ? ' art-neural-horse' : '') + '" style="--art-hue:' + (g.hue != null ? g.hue : 42) + '">' +
+          '<div class="artifact-hologram' + (isNeural ? ' art-neural-horse' : (isGolden ? ' art-golden-ball' : '')) + '" style="--art-hue:' + (g.hue != null ? g.hue : 42) + '">' +
           '<span class="nft-art-core"></span><span class="nft-art-ico" style="font-size:48px">' + (g.ico || '★') + '</span>' +
           '<span class="nft-art-wave"></span></div></div>' +
           '<div class="artifact-inspect-meta">' +

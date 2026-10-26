@@ -8200,3 +8200,31 @@ body.board-active .main,
 body.board-on .main {
   overflow: hidden !important; /* only on board */
 }
+
+
+/* ═══ Golden Ball Founder — Legendary Gold ═══ */
+.art-golden-ball,
+.tg-gift-item.art-golden-ball,
+.artifact-hologram.art-golden-ball {
+  --art-hue: 42 !important;
+  position: relative;
+  isolation: isolate;
+}
+.art-golden-ball {
+  box-shadow:
+    0 0 20px rgba(240, 193, 75, 0.55),
+    0 0 40px rgba(255, 200, 60, 0.25),
+    0 4px 16px rgba(0,0,0,0.45) !important;
+  border-color: rgba(255, 215, 80, 0.9) !important;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 230, 140, 0.65), transparent 50%),
+    linear-gradient(145deg, #c9a227, #5c4010) !important;
+  animation: goldenBallPulse 2.8s ease-in-out infinite !important;
+}
+@keyframes goldenBallPulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(240,193,75,0.4), 0 4px 12px rgba(0,0,0,0.4); }
+  50% { box-shadow: 0 0 28px rgba(255,220,100,0.75), 0 0 48px rgba(240,193,75,0.35), 0 4px 16px rgba(0,0,0,0.45); }
+}
+.artifact-hologram.art-golden-ball .nft-art-ico {
+  filter: drop-shadow(0 0 8px rgba(255, 215, 80, 0.8));
+}

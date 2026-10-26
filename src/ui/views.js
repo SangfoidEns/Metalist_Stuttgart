@@ -133,7 +133,10 @@ const Views = {
       const rar = g.rarity || 'common';
       const hue = g.hue != null ? g.hue : 42;
       const title = sanitize((g.label || '') + (g.serial ? (' · ' + g.serial) : '') + (g.note ? (' — ' + g.note) : ''));
-      const special = (g.special || g.giftId === 'neural_horse_tester') ? ' art-neural-horse' : '';
+      let special = '';
+      if (g.special === 'neural-horse' || g.giftId === 'neural_horse_tester') special = ' art-neural-horse';
+      else if (g.special === 'golden-ball' || g.giftId === 'tyshchenko_first_golden_ball') special = ' art-golden-ball';
+      else if (g.special) special = ' art-' + String(g.special).replace(/[^a-z0-9-]/gi, '');
       // Inline transform as hard fallback (works even if CSS vars fail)
       return '<span class="tg-gift-item nft-art rarity-' + rar + special +
         '" style="--gx:' + x.toFixed(1) + 'px;--gy:' + y.toFixed(1) + 'px;--gi:' + i +
@@ -304,7 +307,7 @@ const Views = {
 
     return `
       <div class="club-profile">
-        <div class="app-build-tag" aria-hidden="true">build 2026.10.27-a · full</div>
+        <div class="app-build-tag" aria-hidden="true">build 2026.10.27-b · full</div>
 
         <!-- Telegram-style profile card (coach/player) -->
         ${(() => {
@@ -1641,7 +1644,7 @@ const Views = {
       <div class="card"><div class="ct">Про застосунок</div>
         <p style="font-size:12px;color:var(--muted);line-height:1.6">
           Тренерська платформа · МЕТАЛІСТ ШТУТГАРТ<br>
-          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.27-a<br>
+          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.27-b<br>
           localStorage · Telegram Cloud
         </p>
       </div>`;
