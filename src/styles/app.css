@@ -7978,3 +7978,125 @@ body.board-on:not(.mode-board-focus) > #btbToolsTray {
   box-shadow: 0 0 12px hsla(280, 100%, 50%, 0.35);
   background: linear-gradient(145deg, hsla(280, 50%, 22%, 0.95), hsla(230, 50%, 14%, 0.95)) !important;
 }
+
+
+/* ═══ GIFTS FINAL — Telegram orbit around avatar (home full / squad max 3) ═══ */
+.cp-avatar-wrap {
+  position: relative !important;
+  width: min(280px, 72vw) !important;
+  height: min(220px, 56vw) !important;
+  margin: 4px auto 12px !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: visible !important;
+  z-index: 5 !important;
+}
+.cp-avatar-wrap .cp-avatar {
+  width: 96px !important;
+  height: 96px !important;
+  margin: 0 !important;
+  z-index: 3 !important;
+  position: relative !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+}
+.cp-hero.cp-person.cp-clean,
+.cp-clean,
+.cp-hero {
+  overflow: visible !important;
+}
+.pl-card-av-wrap {
+  position: relative !important;
+  width: 96px !important;
+  height: 96px !important;
+  margin: 0 auto 10px !important;
+  overflow: visible !important;
+  z-index: 3 !important;
+}
+.pl-card-av-wrap .pl-card-av {
+  width: 64px !important;
+  height: 64px !important;
+  margin: 0 !important;
+  z-index: 2 !important;
+  position: relative !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+}
+.pl-card, .pl-cards, .club-profile, .view-body, #view {
+  overflow: visible !important;
+}
+
+.tg-gift-cloud,
+.tg-gift-cloud.tg-gift-expand {
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 6 !important;
+  overflow: visible !important;
+}
+.tg-gift-item,
+.tg-gift-item.nft-art {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: 36px !important;
+  height: 36px !important;
+  margin: -18px 0 0 -18px !important;
+  border-radius: 12px !important;
+  display: grid !important;
+  place-items: center !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  opacity: 0;
+  transform: translate(0, 0) scale(0.15);
+  animation:
+    tgGiftPopIn 0.55s cubic-bezier(0.2, 1.15, 0.35, 1) forwards,
+    tgGiftFloat 3.6s ease-in-out infinite;
+  animation-delay:
+    calc(var(--gi, 0) * 0.07s),
+    calc(0.55s + var(--gi, 0) * 0.07s);
+  will-change: transform, opacity;
+  background:
+    radial-gradient(circle at 30% 25%, hsla(var(--art-hue, 42), 90%, 70%, 0.55), transparent 55%),
+    linear-gradient(145deg, hsla(var(--art-hue, 42), 70%, 28%, 0.95), rgba(12, 14, 20, 0.95)) !important;
+  border: 1.5px solid hsla(var(--art-hue, 42), 80%, 55%, 0.7) !important;
+  box-shadow:
+    0 4px 14px rgba(0,0,0,0.45),
+    0 0 14px hsla(var(--art-hue, 42), 90%, 50%, 0.28) !important;
+}
+.tg-gift-item .nft-art-ico { font-size: 17px; line-height: 1; position: relative; z-index: 1; }
+@keyframes tgGiftPopIn {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.12); }
+  65%  { opacity: 1; }
+  100% { opacity: 1; transform: translate(var(--gx, 0), var(--gy, 0)) scale(1); }
+}
+@keyframes tgGiftFloat {
+  0%, 100% { transform: translate(var(--gx), var(--gy)) translateY(0) scale(1); }
+  40%      { transform: translate(var(--gx), calc(var(--gy) - 6px)) scale(1.05); }
+  70%      { transform: translate(calc(var(--gx) + 2px), calc(var(--gy) - 2px)) scale(1.02); }
+}
+
+/* Home full mode — larger ornaments */
+.mode-full .tg-gift-item,
+.mode-full .tg-gift-item.nft-art {
+  width: 40px !important;
+  height: 40px !important;
+  margin: -20px 0 0 -20px !important;
+}
+.mode-full .tg-gift-item .nft-art-ico { font-size: 18px; }
+
+/* Squad — max 3, compact */
+.mode-mini3 .tg-gift-item,
+.mode-mini3 .tg-gift-item.nft-art {
+  width: 24px !important;
+  height: 24px !important;
+  margin: -12px 0 0 -12px !important;
+}
+.mode-mini3 .tg-gift-item .nft-art-ico { font-size: 12px; }
+
+.mode-right3 .tg-gift-item,
+.mode-right3 .tg-gift-item.nft-art {
+  width: 32px !important;
+  height: 32px !important;
+  margin: -16px 0 0 -16px !important;
+}

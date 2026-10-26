@@ -94,14 +94,15 @@ const Views = {
     } else if (mode === 'mini3') {
       // squad cards: max 3 small, upper-right cluster
       take = list.slice(0, 3);
-      slots = [{ x: 30, y: -26 }, { x: 36, y: 0 }, { x: 28, y: 26 }];
+      slots = [{ x: 34, y: -28 }, { x: 40, y: 2 }, { x: 32, y: 30 }];
     } else {
-      // home profile: irregular cloud, outside face (Telegram)
-      take = list.slice(0, 8);
+      // home: fill card space like Telegram gifts (not a strict circle)
+      take = list.slice(0, 10);
       slots = [
-        { x: -62, y: -28 }, { x: 64, y: -24 }, { x: -58, y: 36 },
-        { x: 60, y: 40 }, { x: -22, y: -62 }, { x: 28, y: -64 },
-        { x: -70, y: 6 }, { x: 72, y: 8 }
+        { x: -92, y: -48 }, { x: 96, y: -42 }, { x: -88, y: 52 },
+        { x: 90, y: 56 }, { x: -38, y: -88 }, { x: 42, y: -90 },
+        { x: -108, y: 4 }, { x: 112, y: 8 }, { x: -70, y: -72 },
+        { x: 74, y: 78 }
       ];
     }
     return '<div class="tg-gift-cloud tg-gift-expand' + (mode ? (' mode-' + mode) : '') + '" aria-hidden="true">' +
@@ -235,7 +236,7 @@ const Views = {
 
     return `
       <div class="club-profile">
-        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-v · full</div>
+        <div class="app-build-tag" aria-hidden="true">build 2026.10.24-w · full</div>
 
         <!-- Telegram-style profile card (coach/player) -->
         ${(() => {
@@ -1140,7 +1141,7 @@ const Views = {
         let gifs = [];
         try {
           if (typeof CoachTools !== 'undefined' && CoachTools.playerGifts)
-            gifs = (CoachTools.playerGifts(p.id) || []).filter(g => g.attached !== false).slice(0, 8);
+            gifs = (CoachTools.playerGifts(p.id) || []).filter(g => g.attached !== false).slice(0, 3);
         } catch (_) {}
         const giftOrbit = this._tgGiftCloud(gifs, 0.85, 'mini3');
         const giftBadge = this._giftStatusBadge(gifs);
@@ -1172,7 +1173,7 @@ const Views = {
       let gifs = [];
       try {
         if (typeof CoachTools !== 'undefined' && CoachTools.playerGifts)
-          gifs = (CoachTools.playerGifts(p.id) || []).filter(g => g.attached !== false);
+          gifs = (CoachTools.playerGifts(p.id) || []).filter(g => g.attached !== false).slice(0, 3);
       } catch (_) {}
       const giftOrbit = this._tgGiftCloud(gifs, 0.85, 'mini3');
       return '<div class="pl-card glass" data-player-id="' + p.id + '" data-action="open-player-card" role="button" tabindex="0">' +
@@ -1558,7 +1559,7 @@ const Views = {
       <div class="card"><div class="ct">Про застосунок</div>
         <p style="font-size:12px;color:var(--muted);line-height:1.6">
           Тренерська платформа · МЕТАЛІСТ ШТУТГАРТ<br>
-          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-v<br>
+          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.24-w<br>
           localStorage · Telegram Cloud
         </p>
       </div>`;
