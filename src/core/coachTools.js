@@ -9,7 +9,7 @@ const CoachTools = {
     const next = (s.trainings || [])
       .filter(t => t.status === 'planned' && t.date >= today)
       .sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))[0];
-    if (!next) return 'Немає запланованих тренувань.';
+    if (!next) return (typeof t==='function'?t('no_planned'):'Немає запланованих тренувань.');
     const blocks = (next.structure || [])
       .map(b => '• ' + (b.title || b.name || 'Блок') + ' — ' + (b.duration || 0) + ' хв')
       .join('\n');
@@ -36,14 +36,14 @@ const CoachTools = {
     return (
       '👥 Склад у строю: ' + avail.length + '\n' +
       '🩹 Травма/відновлення: ' + inj.length + '\n\n' +
-      (lines || 'Немає гравців')
+      (lines || (typeof t==='function'?t('toast_no_players'):'Немає гравців'))
     );
   },
 
   async shareNextTraining() {
     const text = this.formatNextTrainingMessage();
     const ok = await TelegramManager.shareText('Тренування · МЕТАЛІСТ ШТУТГАРТ', text);
-    if (!ok && typeof Toast !== 'undefined') Toast.show('Не вдалося поділитися — скопіюйте з буфера', 'warn');
+    if (!ok && typeof Toast !== 'undefined') Toast.show(typeof t==='function'?t('toast_share_fail'):'Не вдалося поділитися — скопіюйте з буфера', 'warn');
     return ok;
   },
 
@@ -59,13 +59,13 @@ const CoachTools = {
       if (StorageManager.pushToCloud) {
         StorageManager.pushToCloud();
         try { TelegramManager.hapticSuccess(); } catch (_) {}
-        if (typeof Toast !== 'undefined') Toast.show('Синхронізація з Telegram Cloud…', 'ok');
+        if (typeof Toast !== 'undefined') Toast.show(typeof t==='function'?t('toast_sync'):'Синхронізація з Telegram Cloud…', 'ok');
         return true;
       }
     } catch (e) {
       console.warn('[CoachTools] sync', e);
       try { TelegramManager.hapticError(); } catch (_) {}
-      if (typeof Toast !== 'undefined') Toast.show('Помилка синхронізації', 'error');
+      if (typeof Toast !== 'undefined') Toast.show(typeof t==='function'?t('toast_sync_err'):'Помилка синхронізації', 'error');
     }
     return false;
   },
@@ -76,10 +76,10 @@ const CoachTools = {
       const data = await StorageManager.pullFromCloud();
       if (data) {
         try { TelegramManager.hapticSuccess(); } catch (_) {}
-        if (typeof Toast !== 'undefined') Toast.show('Дані з хмари завантажено', 'ok');
+        if (typeof Toast !== 'undefined') Toast.show(typeof t==='function'?t('toast_cloud_ok'):'Дані з хмари завантажено', 'ok');
         if (typeof App !== 'undefined' && App.renderCurrent) App.renderCurrent();
       } else if (typeof Toast !== 'undefined') {
-        Toast.show('У хмарі немає новіших даних', 'warn');
+        Toast.show(typeof t==='function'?t('toast_cloud_empty'):'У хмарі немає новіших даних', 'warn');
       }
       return data;
     } catch (e) {
@@ -101,7 +101,7 @@ const CoachTools = {
         .sort((a, b) => a.date.localeCompare(b.date))[0];
     }
     if (!t) {
-      if (typeof Toast !== 'undefined') Toast.show('Немає тренування для відміток', 'warn');
+      if (typeof Toast !== 'undefined') Toast.show(typeof t==='function'?t('toast_no_training_att'):'Немає тренування для відміток', 'warn');
       return;
     }
     if (typeof Actions !== 'undefined' && Actions.openAttendance) {
@@ -119,7 +119,7 @@ const CoachTools = {
         document.querySelector('[data-action="timer-play"], [data-timer="play"]')?.click();
       }
       try { TelegramManager.haptic('medium'); } catch (_) {}
-      if (typeof Toast !== 'undefined') Toast.show('Сесію запущено', 'ok');
+      if (typeof Toast !== 'undefined') Toast.show(typeof t==='function'?t('toast_session_start'):'Сесію запущено', 'ok');
     } catch (e) {
       console.warn(e);
     }
@@ -149,7 +149,7 @@ const CoachTools = {
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="share-training">📤 План тренування в чат</button>
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="share-roster">👥 Склад у чат</button>
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="timer">▶ Старт сесії</button>
-          <button type="button" class="btn btn-s coach-tool" data-coach-tool="sync-push">☁ Зберегти в Telegram Cloud</button>
+          <button type="button" class="btn btn-s coach-tool" data-coach-tool="sync-push">☁ ${typeof t==='function'?t('cloud_save_btn'):'Зберегти в Telegram Cloud'}</button>
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="sync-pull">☁ Завантажити з Cloud</button>
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="export">📦 Експорт / Share JSON</button>
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="board">⛶ Тактична дошка</button>
@@ -434,7 +434,7 @@ CoachTools.attachGift = function (giftId) {
   if (!g) return false;
   g.attached = true;
   try { StorageManager.save(); } catch (_) {}
-  if (typeof Toast !== 'undefined') Toast.show('Подарунок прикріплено до профілю', 'ok');
+  if (typeof Toast !== 'undefined') Toast.show(typeof t==='function'?t('toast_gift_attach'):'Подарунок прикріплено до профілю', 'ok');
   return true;
 };
 
@@ -452,7 +452,7 @@ CoachTools.addMoment = function (playerId, text, trainingId) {
   if (!m.text) return null;
   s.moments.push(m);
   try { StorageManager.save(); } catch (_) {}
-  if (typeof Toast !== 'undefined') Toast.show('Памʼятний момент збережено', 'ok');
+  if (typeof Toast !== 'undefined') Toast.show(typeof t==='function'?t('toast_moment_save'):'Памʼятний момент збережено', 'ok');
   return m;
 };
 
@@ -491,7 +491,7 @@ CoachTools.deleteGift = function (giftInstanceId) {
   s.gifts = s.gifts.filter(g => g.id !== giftInstanceId);
   if (s.gifts.length === before) return false;
   try { StorageManager.save(); } catch (_) {}
-  if (typeof Toast !== 'undefined') Toast.show('Подарунок видалено', 'ok');
+  if (typeof Toast !== 'undefined') Toast.show(typeof t==='function'?t('toast_gift_delete'):'Подарунок видалено', 'ok');
   try { if (typeof App !== 'undefined' && App.renderCurrent) App.renderCurrent(); } catch (_) {}
   return true;
 };
@@ -502,7 +502,7 @@ CoachTools.editGiftNote = function (giftInstanceId, note) {
   if (!g) return false;
   g.note = String(note || '').trim();
   try { StorageManager.save(); } catch (_) {}
-  if (typeof Toast !== 'undefined') Toast.show('Пам\'ятний момент оновлено', 'ok');
+  if (typeof Toast !== 'undefined') Toast.show(typeof t==='function'?t('toast_moment_upd'):'Пам\'ятний момент оновлено', 'ok');
   return true;
 };
 
@@ -513,7 +513,7 @@ CoachTools.detachGift = function (giftInstanceId) {
   g.attached = false;
   g.featured = false;
   try { StorageManager.save(); } catch (_) {}
-  if (typeof Toast !== 'undefined') Toast.show('Знято з профілю', 'ok');
+  if (typeof Toast !== 'undefined') Toast.show(typeof t==='function'?t('toast_gift_detach'):'Знято з профілю', 'ok');
   return true;
 };
 
@@ -524,7 +524,7 @@ CoachTools.toggleAttachGift = function (giftInstanceId) {
   g.attached = !(g.attached !== false);
   if (!g.attached) g.featured = false;
   try { StorageManager.save(); } catch (_) {}
-  if (typeof Toast !== 'undefined') Toast.show(g.attached ? 'Прикріплено до профілю' : 'Знято з профілю', 'ok');
+  if (typeof Toast !== 'undefined') Toast.show(g.attached ? (typeof t==='function'?t('toast_gift_attach'):'Прикріплено') : (typeof t==='function'?t('toast_gift_detach'):'Знято'), 'ok');
   return g.attached;
 };
 

@@ -1308,29 +1308,29 @@ const App = {
         <div class="tr-stat"><b>${totalMin}</b><span>хв плану</span></div>
         <div class="tr-stat"><b>${t.intensity != null ? t.intensity : '—'}</b><span>RPE план</span></div>
         <div class="tr-stat"><b>${load || '—'}</b><span>Load</span></div>
-        <div class="tr-stat"><b>${attPct != null ? attPct + '%' : '—'}</b><span>Відвідування</span></div>
+        <div class="tr-stat"><b>${attPct != null ? attPct + '%' : '—'}</b><span>' + (typeof I18n!=='undefined'?I18n.t('longpress_attendance','Відвідування'):'Відвідування') + '</span></div>
         <div class="tr-stat"><b>${rpeN ? avgRpe : '—'}</b><span>Сер. RPE</span></div>
         <div class="tr-stat"><b>${attPresent}/${attTotal || '—'}</b><span>Було</span></div>
       </div>`;
     const planBlock = `
       <div class="tg-sheet-preview tr-plan-preview">
         ${t.mainGoal ? ('<div class="tr-goal">🎯 ' + (typeof sanitize === 'function' ? sanitize(t.mainGoal) : t.mainGoal) + '</div>') : ''}
-        <div class="tr-plan-title">План тренування</div>
-        ${struct || '<div class="note-sm">Структура не задана</div>'}
+        <div class="tr-plan-title">${(typeof I18n!=='undefined'?I18n.t('scheme_training','План тренування'):'План тренування')}</div>
+        ${struct || ('<div class="note-sm">' + (typeof I18n!=='undefined'?I18n.t('no_trainings','Структура не задана'):'Структура не задана') + '</div>')}
         ${statsBlock}
       </div>`;
     const coachActions = isCoach ? `
-      <button type="button" class="tg-sheet-btn" data-sheet-act="edit" data-tid="${t.id}">✏️ Редагувати</button>
-      <button type="button" class="tg-sheet-btn" data-sheet-act="attendance" data-tid="${t.id}">✓ Відвідування</button>
-      <button type="button" class="tg-sheet-btn" data-sheet-act="dup" data-tid="${t.id}">⧉ Дубль / копія</button>
-      <button type="button" class="tg-sheet-btn" data-sheet-act="open-board" data-tid="${t.id}">⚽ Відкрити дошку</button>
-      <button type="button" class="tg-sheet-btn" data-sheet-act="attach-board" data-tid="${t.id}">📌 Прикріпити поточну дошку</button>
+      <button type="button" class="tg-sheet-btn" data-sheet-act="edit" data-tid="${t.id}">✏️ ' + (typeof I18n!=='undefined'?I18n.t('sheet_edit','Редагувати'):'Редагувати') + '</button>
+      <button type="button" class="tg-sheet-btn" data-sheet-act="attendance" data-tid="${t.id}">✓ ${(typeof I18n!=='undefined'?I18n.t('sheet_attendance','Відвідування'):'Відвідування')}</button>
+      <button type="button" class="tg-sheet-btn" data-sheet-act="dup" data-tid="${t.id}">⧉ ${(typeof I18n!=='undefined'?I18n.t('sheet_dup','Дубль / копія'):'Дубль / копія')}</button>
+      <button type="button" class="tg-sheet-btn" data-sheet-act="open-board" data-tid="${t.id}">⚽ ${(typeof I18n!=='undefined'?I18n.t('open_board','Відкрити дошку'):'Відкрити дошку')}</button>
+      <button type="button" class="tg-sheet-btn" data-sheet-act="attach-board" data-tid="${t.id}">📌 ' + (typeof I18n!=='undefined'?I18n.t('sheet_attach','Прикріпити поточну дошку'):'Прикріпити поточну дошку') + '</button>
       ${cancelled
-        ? `<button type="button" class="tg-sheet-btn" data-sheet-act="restore" data-tid="${t.id}">↩ Відновити (заплановане)</button>`
-        : `<button type="button" class="tg-sheet-btn tg-sheet-warn" data-sheet-act="cancel" data-tid="${t.id}">🚫 Скасувати тренування</button>`}
-      <button type="button" class="tg-sheet-btn tg-sheet-danger" data-sheet-act="delete" data-tid="${t.id}">🗑 Видалити</button>
+        ? `<button type="button" class="tg-sheet-btn" data-sheet-act="restore" data-tid="${t.id}">↩ ${(typeof I18n!=='undefined'?I18n.t('planned','Відновити'):'Відновити')}</button>`
+        : `<button type="button" class="tg-sheet-btn tg-sheet-warn" data-sheet-act="cancel" data-tid="${t.id}">🚫 ${(typeof I18n!=='undefined'?I18n.t('sheet_cancel_tr','Скасувати тренування'):'Скасувати тренування')}</button>`}
+      <button type="button" class="tg-sheet-btn tg-sheet-danger" data-sheet-act="delete" data-tid="${t.id}">🗑 ' + (typeof I18n!=='undefined'?I18n.t('sheet_delete','Видалити'):'Видалити') + '</button>
     ` : `
-      <button type="button" class="tg-sheet-btn" data-sheet-act="open-board" data-tid="${t.id}">⚽ Переглянути дошку</button>
+      <button type="button" class="tg-sheet-btn" data-sheet-act="open-board" data-tid="${t.id}">⚽ ${(typeof I18n!=='undefined'?I18n.t('open_board','Переглянути дошку'):'Переглянути дошку')}</button>
     `;
     sheet.innerHTML = `
       <div class="tg-sheet-handle"></div>
@@ -1338,7 +1338,7 @@ const App = {
       <div class="tg-sheet-sub">${t.date || ''} · ${Views._trStatusLabel ? Views._trStatusLabel(t.status) : t.status}</div>
       ${planBlock}
       ${coachActions}
-      <button type="button" class="tg-sheet-btn tg-sheet-cancel" data-sheet-act="close">Закрити</button>
+      <button type="button" class="tg-sheet-btn tg-sheet-cancel" data-sheet-act="close">${(typeof I18n!=='undefined'?I18n.t('close','Закрити'):'Закрити')}</button>
     `;
     sheet.className = 'tg-sheet';
     backdrop.appendChild(sheet);
@@ -1374,7 +1374,7 @@ const App = {
         return;
       }
       if (act === 'delete') {
-        return Modal.confirm('Видалити тренування назавжди?', () => {
+        return Modal.confirm(((typeof I18n!=='undefined'?I18n.t('confirm_del_training','Видалити тренування назавжди?'):'Видалити тренування назавжди?')), () => {
           Store.get().trainings = Store.get().trainings.filter(x => x.id !== tid);
           StorageManager.save();
           App.renderCurrent();
@@ -1432,12 +1432,12 @@ const App = {
       '<div class="tg-sheet-handle"></div>' +
       '<div class="tg-sheet-title">' + title + '</div>' +
       '<div class="tg-sheet-sub">' + (p.position || '') + ' · ' + (p.status || 'available') + '</div>' +
-      '<button type="button" class="tg-sheet-btn" data-psheet="edit" data-pid="' + p.id + '">✏️ Редагувати</button>' +
-      '<button type="button" class="tg-sheet-btn" data-psheet="board" data-pid="' + p.id + '">⚽ Прикріпити поточну дошку</button>' +
-      '<button type="button" class="tg-sheet-btn" data-psheet="diary" data-pid="' + p.id + '">📓 Запис у щоденник</button>' +
-      '<button type="button" class="tg-sheet-btn" data-psheet="starter" data-pid="' + p.id + '">⭐ У основу / резерв</button>' +
-      '<button type="button" class="tg-sheet-btn tg-sheet-danger" data-psheet="delete" data-pid="' + p.id + '">🗑 Видалити</button>' +
-      '<button type="button" class="tg-sheet-btn tg-sheet-cancel" data-psheet="close">Закрити</button></div>';
+      '<button type="button" class="tg-sheet-btn" data-psheet="edit" data-pid="' + p.id + '">✏️ ' + (typeof I18n!=='undefined'?I18n.t('sheet_edit','Редагувати'):'Редагувати') + '</button>' +
+      '<button type="button" class="tg-sheet-btn" data-psheet="board" data-pid="' + p.id + '">⚽ ' + (typeof I18n!=='undefined'?I18n.t('sheet_attach','Прикріпити поточну дошку'):'Прикріпити поточну дошку') + '</button>' +
+      '<button type="button" class="tg-sheet-btn" data-psheet="diary" data-pid="' + p.id + '">📓 ' + (typeof I18n!=='undefined'?I18n.t('diary_title','Запис у щоденник'):'Запис у щоденник') + '</button>' +
+      '<button type="button" class="tg-sheet-btn" data-psheet="starter" data-pid="' + p.id + '">⭐ ' + (typeof I18n!=='undefined'?I18n.t('starter','Основа'):'Основа') + ' / ' + (typeof I18n!=='undefined'?I18n.t('reserve','Резерв'):'Резерв') + '</button>' +
+      '<button type="button" class="tg-sheet-btn tg-sheet-danger" data-psheet="delete" data-pid="' + p.id + '">🗑 ' + (typeof I18n!=='undefined'?I18n.t('sheet_delete','Видалити'):'Видалити') + '</button>' +
+      '<button type="button" class="tg-sheet-btn tg-sheet-cancel" data-psheet="close">' + (typeof I18n!=='undefined'?I18n.t('close','Закрити'):'Закрити') + '</button></div>';
     document.body.appendChild(backdrop);
     requestAnimationFrame(function() { backdrop.classList.add('show'); });
     const close = function() { backdrop.classList.remove('show'); setTimeout(function() { backdrop.remove(); }, 220); };
@@ -1502,7 +1502,7 @@ const App = {
       '<button type="button" class="tg-sheet-btn" data-ssheet="training" data-bid="' + b.id + '">📋 Прикріпити до тренування</button>' +
       '<button type="button" class="tg-sheet-btn" data-ssheet="player" data-bid="' + b.id + '">👤 Прикріпити до гравця</button>' +
       '<button type="button" class="tg-sheet-btn" data-ssheet="diary" data-bid="' + b.id + '">📓 Прикріпити до щоденника</button>' +
-      '<button type="button" class="tg-sheet-btn tg-sheet-danger" data-ssheet="delete" data-bid="' + b.id + '">🗑 Видалити</button>' +
+      '<button type="button" class="tg-sheet-btn tg-sheet-danger" data-ssheet="delete" data-bid="' + b.id + '">🗑 ' + (typeof I18n!=='undefined'?I18n.t('sheet_delete','Видалити'):'Видалити') + '</button>' +
       '<button type="button" class="tg-sheet-btn tg-sheet-cancel" data-ssheet="close">Закрити</button></div>';
     document.body.appendChild(backdrop);
     requestAnimationFrame(function() { backdrop.classList.add('show'); });
@@ -1611,7 +1611,7 @@ const App = {
       '<div class="tg-sheet-title">' + tname + '</div>' +
       '<div class="tg-sheet-sub">' + (t.date || '') + ' ' + (t.time || '') + ' · ' + (t.duration || 0) + ' хв · RPE ' + (t.intensity || '—') + '</div>' +
       '<div class="tg-sheet-preview">' + goal + blocks + '</div>' +
-      '<button type="button" class="tg-sheet-btn" data-nsheet="edit" data-tid="' + t.id + '">✏️ Редагувати</button>' +
+      '<button type="button" class="tg-sheet-btn" data-nsheet="edit" data-tid="' + t.id + '">✏️ ' + (typeof I18n!=='undefined'?I18n.t('sheet_edit','Редагувати'):'Редагувати') + '</button>' +
       '<button type="button" class="tg-sheet-btn" data-nsheet="share" data-tid="' + t.id + '">📤 Поділитися планом</button>' +
       '<button type="button" class="tg-sheet-btn" data-nsheet="board" data-tid="' + t.id + '">⚽ Дошка</button>' +
       '<button type="button" class="tg-sheet-btn tg-sheet-cancel" data-nsheet="close">Закрити</button></div>';
@@ -2141,7 +2141,7 @@ const App = {
               (attached ? '📎 Зняти з профілю' : '📌 На профіль') + '</button>' +
             (g.playerId ? ('<button type="button" class="btn btn-s btn-sm" data-action="set-featured-gift" data-player-id="' +
               g.playerId + '" data-gift-uid="' + uid + '">⭐ Біля імені</button>') : '') +
-            '<button type="button" class="btn btn-s btn-sm btn-danger" data-action="delete-gift" data-gift-uid="' + uid + '">🗑 Видалити</button>' +
+            '<button type="button" class="btn btn-s btn-sm btn-danger" data-action="delete-gift" data-gift-uid="' + uid + '">🗑 ' + (typeof I18n!=='undefined'?I18n.t('sheet_delete','Видалити'):'Видалити') + '</button>' +
             '</div>';
         }
         const html = '<div class="artifact-inspect' + (isNeural ? ' neural-inspect' : '') + (isGolden ? ' golden-inspect' : '') + (isCrest ? ' crest-inspect' : '') + '">' +
