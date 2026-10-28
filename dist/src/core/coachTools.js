@@ -186,34 +186,65 @@ if (typeof window !== 'undefined') window.CoachTools = CoachTools;
 /** ── Telegram-style gifts & memorable moments ── */
 /** NFT-артефакти клубу (як Telegram Gifts) — унікальні серійні екземпляри */
 CoachTools.GIFT_CATALOG = [
-  { id: 'star_gold',   ico: '⭐', label: 'Золота зірка',     rarity: 'legendary', hue: 42,  pattern: 1 },
-  { id: 'cup_silver',  ico: '🏆', label: 'Срібний кубок',    rarity: 'epic',      hue: 210, pattern: 2 },
-  { id: 'fire_core',   ico: '🔥', label: 'Ядро вогню',       rarity: 'rare',      hue: 14,  pattern: 3 },
-  { id: 'bolt_neon',   ico: '⚡', label: 'Неонова енергія',  rarity: 'rare',      hue: 55,  pattern: 4 },
-  { id: 'heart_club',  ico: '❤️', label: 'Серце Металіста',  rarity: 'common',    hue: 350, pattern: 5 },
-  { id: 'medal_train', ico: '🏅', label: 'Медаль тренування',rarity: 'common',    hue: 38,  pattern: 6 },
-  { id: 'ball_pro',    ico: '⚽', label: 'Pro-мʼяч',         rarity: 'epic',      hue: 120, pattern: 7 },
-  { id: 'crown_coach', ico: '👑', label: 'Корона тренера',   rarity: 'legendary', hue: 48,  pattern: 8 },
-  { id: 'boot_speed',  ico: '👟', label: 'Швидкі бутси',     rarity: 'rare',      hue: 280, pattern: 9 },
-  { id: 'glove_gk',    ico: '🧤', label: 'Рукавиці GK',      rarity: 'epic',      hue: 160, pattern: 10 },
-  { id: 'whistle',     ico: '📢', label: 'Свисток лідера',   rarity: 'common',    hue: 200, pattern: 11 },
-  { id: 'shield',      ico: '🛡️', label: 'Щит оборони',      rarity: 'rare',      hue: 195, pattern: 12 },
-  { id: 'welcome_club_badge', ico: '🔰', label: 'Священна Гільза Клубу', rarity: 'common', hue: 200, pattern: 1,
+  /* ── Telegram-style animated emoji artifacts ── */
+  { id: 'star_gold',   ico: '⭐', label: 'Золота зірка',     rarity: 'legendary', hue: 42,  pattern: 1, anim: 'sparkle' },
+  { id: 'cup_silver',  ico: '🏆', label: 'Срібний кубок',    rarity: 'epic',      hue: 210, pattern: 2, anim: 'bounce' },
+  { id: 'fire_core',   ico: '🔥', label: 'Ядро вогню',       rarity: 'rare',      hue: 14,  pattern: 3, anim: 'pulse' },
+  { id: 'bolt_neon',   ico: '⚡', label: 'Неонова енергія',  rarity: 'rare',      hue: 55,  pattern: 4, anim: 'flash' },
+  { id: 'heart_club',  ico: '❤️', label: 'Серце Металіста',  rarity: 'common',    hue: 350, pattern: 5, anim: 'heartbeat' },
+  { id: 'medal_train', ico: '🏅', label: 'Медаль тренування',rarity: 'common',    hue: 38,  pattern: 6, anim: 'sway' },
+  { id: 'ball_pro',    ico: '⚽', label: 'Pro-мʼяч',         rarity: 'epic',      hue: 120, pattern: 7, anim: 'spin' },
+  { id: 'crown_coach', ico: '👑', label: 'Корона тренера',   rarity: 'legendary', hue: 48,  pattern: 8, anim: 'sparkle' },
+  { id: 'boot_speed',  ico: '👟', label: 'Швидкі бутси',     rarity: 'rare',      hue: 280, pattern: 9, anim: 'bounce' },
+  { id: 'glove_gk',    ico: '🧤', label: 'Рукавиці GK',      rarity: 'epic',      hue: 160, pattern: 10, anim: 'wiggle' },
+  { id: 'whistle',     ico: '📢', label: 'Свисток лідера',   rarity: 'common',    hue: 200, pattern: 11, anim: 'pulse' },
+  { id: 'shield',      ico: '🛡️', label: 'Щит оборони',      rarity: 'rare',      hue: 195, pattern: 12, anim: 'sway' },
+  /* сучасні emoji-набори клубу */
+  { id: 'rocket_form', ico: '🚀', label: 'Форма ракети',     rarity: 'epic',      hue: 200, pattern: 3, anim: 'launch',
+    description: 'За вибуховий прогрес у сезоні.', momentHint: 'Вгору тільки вгору!' },
+  { id: 'target_focus', ico: '🎯', label: 'Точний удар',      rarity: 'rare',      hue: 0,   pattern: 5, anim: 'pulse',
+    description: 'За концентрацію і виконання завдань на тренуванні.' },
+  { id: 'gem_metality', ico: '💎', label: 'Діамант Металіста', rarity: 'legendary', hue: 190, pattern: 8, anim: 'sparkle',
+    description: 'Рідкісний артефакт за видатний внесок у клуб.' },
+  { id: 'fox_smart',   ico: '🦊', label: 'Хитрий лис',       rarity: 'rare',      hue: 25,  pattern: 4, anim: 'wiggle',
+    description: 'За розумну гру і тактичну кмітливість.' },
+  { id: 'lion_heart',  ico: '🦁', label: 'Лев Штутгарта',    rarity: 'epic',      hue: 40,  pattern: 6, anim: 'roar',
+    description: 'За лідерство і характер на полі.' },
+  { id: 'dragon_power', ico: '🐉', label: 'Дракон сили',     rarity: 'legendary', hue: 320, pattern: 9, anim: 'pulse',
+    description: 'Максимальна інтенсивність і бойовий дух.' },
+  { id: 'sparkles_mvp', ico: '✨', label: 'MVP-іскра',        rarity: 'epic',      hue: 50,  pattern: 2, anim: 'sparkle',
+    description: 'Гравець матчу / тренування.' },
+  { id: 'camera_moment', ico: '📸', label: 'Кадр сезону',    rarity: 'rare',      hue: 210, pattern: 7, anim: 'flash',
+    description: 'Пам\'ятний момент з фото або відео тренування.', momentHint: 'Збережи цей кадр назавжди.' },
+  { id: 'idea_light',  ico: '💡', label: 'Ідея тренера',     rarity: 'rare',      hue: 50,  pattern: 3, anim: 'flash',
+    description: 'За ідею, пропозицію або креативне рішення для клубу.' },
+  { id: 'clutch_100',  ico: '💯', label: 'На всі 100',       rarity: 'epic',      hue: 140, pattern: 1, anim: 'bounce',
+    description: 'Повне виконання плану тренування.' },
+  { id: 'welcome_club_badge', ico: '🔰', label: 'Священна Гільза Клубу', rarity: 'common', hue: 200, pattern: 1, anim: 'sway',
     description: 'Тренер дарує цей артефакт кожному новобранцю як знак офіційного приєднання до нашої футбольної родини.',
     momentHint: 'Вітаємо в клубі! Перший крок у великій історії Metalist Stuttgart!' },
-  /* Легендарний артефакт тестувальників — Cyberpunk Football / Tech-Noir Metalist */
   { id: 'neural_horse_tester', ico: '🧠', label: 'Нейронний Ударник Штутгарта',
-    rarity: 'legendary', hue: 280, pattern: 11,
-    special: 'neural-horse',
+    rarity: 'legendary', hue: 280, pattern: 11, anim: 'neural', special: 'neural-horse',
+    exclusive: 'grok', series: 'Architects',
     description: 'Цей артефакт вручається за глибоке занурення в архітектуру додатку, виявлення критичних багів та візіонерські пропозиції, що формують майбутнє Metalist Stuttgart.',
     momentHint: 'Творець майбутнього: твій код — фундамент нашої перемоги!' },
-  /* Легендарний артефакт засновника / президента клубу */
+  /* ═══════════════════════════════════════════════
+   * GROK EXCLUSIVE — тільки Metalist Stuttgart
+   * Унікальні анімовані артефакти. Додаються лише через Grok.
+   * Серія: Club DNA (емблема, кінь, золото, 2025)
+   * ═══════════════════════════════════════════════ */
+  { id: 'grok_crest_seal_2025', ico: '🛡️', label: 'Золотий Герб 2025',
+    rarity: 'legendary', hue: 42, pattern: 12, anim: 'crest', special: 'crest-seal',
+    exclusive: 'grok', series: 'Club DNA',
+    description: 'Ексклюзивний артефакт Metalist Stuttgart від Grok. Золотий щит із конем Штутгарта та печаткою сезону 2025 — символ фундаменту клубу. Ніде більше не існує.',
+    momentHint: 'Печатка історії: герб, що відкрив еру Metalist Stuttgart.' },
   { id: 'tyshchenko_first_golden_ball', ico: '⚽', label: 'Золотий М\'яч Засновника',
-    rarity: 'legendary', hue: 42, pattern: 12,
-    special: 'golden-ball',
+    rarity: 'legendary', hue: 42, pattern: 12, anim: 'golden', special: 'golden-ball',
+    exclusive: 'grok', series: 'Founders',
     description: 'Тренер та команда дарує цей артефакт президенту клубу та головному організатору за візіонерство, створення фундаменту та запуск історичного сезону Metalist Stuttgart.',
     momentHint: 'Перший Золотий М\'яч клубу 2025/2026: легендарний старт великої історії!' }
 ];
+
 
 CoachTools.RARITY_LABEL = {
   common: 'Звичайний',
@@ -303,6 +334,58 @@ CoachTools.addArtifactToCatalog = function (raw) {
   return art;
 };
 
+
+/** Створити сучасний анімований emoji-артефакт (Telegram-style) */
+CoachTools.createEmojiArtifact = function (opts) {
+  opts = opts || {};
+  const ico = String(opts.ico || opts.emoji || '⭐').trim().slice(0, 8) || '⭐';
+  const label = String(opts.label || 'Кастомний артефакт').trim().slice(0, 48) || 'Артефакт';
+  const rarity = ['common', 'rare', 'epic', 'legendary'].includes(opts.rarity) ? opts.rarity : 'rare';
+  const anim = opts.anim || 'bounce';
+  const hue = Number.isFinite(+opts.hue) ? (+opts.hue % 360) : 42;
+  const id = 'custom_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 999);
+  const art = {
+    id: id,
+    ico: ico,
+    label: label,
+    rarity: rarity,
+    hue: hue,
+    pattern: Math.floor(Math.random() * 12),
+    anim: anim,
+    special: opts.special || null,
+    mediaUrl: opts.mediaUrl || '',
+    description: String(opts.description || '').slice(0, 280),
+    momentHint: String(opts.momentHint || '').slice(0, 120)
+  };
+  if (!CoachTools.GIFT_CATALOG) CoachTools.GIFT_CATALOG = [];
+  CoachTools.GIFT_CATALOG.push(art);
+  try {
+    const s = Store.get();
+    if (!s.settings) s.settings = {};
+    if (!Array.isArray(s.settings.customArtifacts)) s.settings.customArtifacts = [];
+    s.settings.customArtifacts.push(art);
+    if (typeof StorageManager !== 'undefined') StorageManager.save();
+  } catch (_) {}
+  if (typeof Toast !== 'undefined') Toast.show(ico + ' «' + label + '» додано в каталог', 'ok');
+  return art;
+};
+
+
+CoachTools.loadCustomArtifacts = function () {
+  try {
+    const s = Store.get();
+    const list = (s.settings && s.settings.customArtifacts) || [];
+    if (!CoachTools.GIFT_CATALOG) CoachTools.GIFT_CATALOG = [];
+    const have = new Set(CoachTools.GIFT_CATALOG.map(g => g.id));
+    list.forEach(a => {
+      if (a && a.id && !have.has(a.id)) {
+        CoachTools.GIFT_CATALOG.push(a);
+        have.add(a.id);
+      }
+    });
+  } catch (_) {}
+};
+
 CoachTools.awardGift = function (playerId, giftId, note) {
   const s = Store.get();
   if (!s.gifts) s.gifts = [];
@@ -327,6 +410,10 @@ CoachTools.awardGift = function (playerId, giftId, note) {
     pattern: (cat.pattern != null ? cat.pattern : (seed % 12)),
     seed: seed,
     special: cat.special || null,
+    anim: cat.anim || 'float',
+    mediaUrl: cat.mediaUrl || '',
+    exclusive: cat.exclusive || null,
+    series: cat.series || null,
     description: cat.description || '',
     momentHint: cat.momentHint || '',
     createdAt: new Date().toISOString(),

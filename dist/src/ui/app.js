@@ -1,12 +1,14 @@
 /** Extracted module: src/ui/app.js lines 2014-2394 — DO NOT rewrite business logic */
 const App = {
   init() {
-    try { TelegramManager.init(); } catch (e) { console.warn('Telegram', e); }
+    try { (typeof CoachTools !== "undefined" && CoachTools.loadCustomArtifacts && CoachTools.loadCustomArtifacts());
+    TelegramManager.init(); } catch (e) { console.warn('Telegram', e); }
     try { StorageManager.init(); } catch (e) {
       console.error('Storage init failed', e);
       try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(BACKUP_KEY); } catch (_) {}
       try { StorageManager.init(); } catch (e2) { console.error(e2); }
     }
+    try { if (typeof I18n !== 'undefined' && I18n.initFromStore) I18n.initFromStore(); } catch (e) { console.warn('i18n', e); }
     try { this.applyBranding(); } catch (e) { console.warn('branding', e); }
     try { this.applyThemeMode((Store.get().settings || {}).theme || 'dark'); } catch (e) { console.warn('theme', e); }
     this.bindEvents();
@@ -312,14 +314,15 @@ const App = {
     /* achievements + attendance via CoachTools */
     const s = (typeof Store !== 'undefined' && Store.get()) || {};
     const set = s.settings || {};
-    const name = set.coachName
-      || ((typeof AuthManager !== 'undefined' && AuthManager.displayName) ? AuthManager.displayName() : 'Artem Serdiuk');
-    let photo = set.coachPhoto || '';
+    const name = (set.coachName && String(set.coachName).trim()) || 'Artem Serdiuk';
+    let photo = set.coachPhoto || set.coachPhotoUrl || '';
     try {
-      if (!photo && typeof AuthManager !== 'undefined' && AuthManager.user) {
+      // Фото з Telegram лише якщо сесія — тренер (інакше підтягнеться аватар гравця)
+      const isCoachSession = typeof AuthManager !== 'undefined' && AuthManager.isCoach && AuthManager.isCoach();
+      if (!photo && isCoachSession && AuthManager.user) {
         photo = AuthManager.user.photo_url || AuthManager.user.photoUrl || '';
       }
-      if (!photo && typeof TelegramManager !== 'undefined' && TelegramManager.tg) {
+      if (!photo && isCoachSession && typeof TelegramManager !== 'undefined' && TelegramManager.tg) {
         const u = TelegramManager.tg.initDataUnsafe && TelegramManager.tg.initDataUnsafe.user;
         if (u && u.photo_url) photo = u.photo_url;
       }
@@ -1917,7 +1920,19 @@ const App = {
         return;
       }
 
-      if (action === 'save-settings') return Actions.saveSettings();
+      
+    if (action === 'set-lang') {
+      e.preventDefault(); e.stopPropagation();
+      const code = t.getAttribute('data-lang') || 'uk';
+      if (typeof I18n !== 'undefined' && I18n.setLang) {
+        I18n.setLang(code);
+        if (typeof Toast !== 'undefined') Toast.show((code === 'de' ? 'Deutsch' : 'Українська') + ' ✓', 'ok');
+        try { TelegramManager.haptic && TelegramManager.haptic('light'); } catch (_) {}
+      }
+      return;
+    }
+
+    if (action === 'save-settings') return Actions.saveSettings();
       if (action === 'save-rbac') {
         const coachesRaw = (document.getElementById('setCoaches')?.value || '').split(',').map(x => x.trim()).filter(Boolean);
         let links = {};
@@ -2085,7 +2100,27 @@ const App = {
         } catch (_) { try { App.renderCurrent(); } catch (__) {} }
         return;
       }
-      if (action === 'inspect-artifact') {
+      
+    if (action === 'create-emoji-artifact') {
+      e.preventDefault(); e.stopPropagation();
+      if (typeof Auth !== 'undefined' && Auth.role && Auth.role() !== 'coach') {
+        if (typeof Toast !== 'undefined') Toast.show('Лише тренер', 'warn');
+        return;
+      }
+      const emoji = window.prompt('Emoji (наприклад 🚀 💎 🦊):', '🚀');
+      if (!emoji) return;
+      const label = window.prompt('Назва артефакту:', 'Новий артефакт');
+      if (!label) return;
+      const anim = window.prompt('Анімація: bounce|spin|pulse|sparkle|wiggle|heartbeat|flash|sway|launch', 'bounce') || 'bounce';
+      const rarity = window.prompt('Рідкість: common|rare|epic|legendary', 'rare') || 'rare';
+      if (typeof CoachTools !== 'undefined' && CoachTools.createEmojiArtifact) {
+        CoachTools.createEmojiArtifact({ ico: emoji, label, anim, rarity });
+        if (typeof App !== 'undefined' && App.renderCurrent) App.renderCurrent();
+      }
+      return;
+    }
+
+    if (action === 'inspect-artifact') {
         e.preventDefault(); e.stopPropagation();
         const uid = t.dataset.giftUid || t.getAttribute('data-gift-uid');
         const s = Store.get();
@@ -2094,6 +2129,7 @@ const App = {
         const rar = (typeof CoachTools !== 'undefined' && CoachTools.RARITY_LABEL && CoachTools.RARITY_LABEL[g.rarity]) || g.rarity || '';
         const isNeural = g.special === 'neural-horse' || g.giftId === 'neural_horse_tester';
         const isGolden = g.special === 'golden-ball' || g.giftId === 'tyshchenko_first_golden_ball';
+        const isCrest = g.special === 'crest-seal' || g.giftId === 'grok_crest_seal_2025';
         const isCoach = typeof AuthManager !== 'undefined' && AuthManager.isCoach && AuthManager.isCoach();
         const attached = g.attached !== false;
         let coachBtns = '';
@@ -2108,9 +2144,9 @@ const App = {
             '<button type="button" class="btn btn-s btn-sm btn-danger" data-action="delete-gift" data-gift-uid="' + uid + '">🗑 Видалити</button>' +
             '</div>';
         }
-        const html = '<div class="artifact-inspect' + (isNeural ? ' neural-inspect' : '') + (isGolden ? ' golden-inspect' : '') + '">' +
+        const html = '<div class="artifact-inspect' + (isNeural ? ' neural-inspect' : '') + (isGolden ? ' golden-inspect' : '') + (isCrest ? ' crest-inspect' : '') + '">' +
           '<div class="artifact-inspect-stage">' +
-          '<div class="artifact-hologram' + (isNeural ? ' art-neural-horse' : (isGolden ? ' art-golden-ball' : '')) + '" style="--art-hue:' + (g.hue != null ? g.hue : 42) + '">' +
+          '<div class="artifact-hologram' + (isNeural ? ' art-neural-horse' : (isGolden ? ' art-golden-ball' : (isCrest ? ' art-crest-seal' : ''))) + '" style="--art-hue:' + (g.hue != null ? g.hue : 42) + '">' +
           '<span class="nft-art-core"></span><span class="nft-art-ico" style="font-size:48px">' + (g.ico || '★') + '</span>' +
           '<span class="nft-art-wave"></span></div></div>' +
           '<div class="artifact-inspect-meta">' +

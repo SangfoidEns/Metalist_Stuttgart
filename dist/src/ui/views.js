@@ -136,16 +136,17 @@ const Views = {
       let special = '';
       if (g.special === 'neural-horse' || g.giftId === 'neural_horse_tester') special = ' art-neural-horse';
       else if (g.special === 'golden-ball' || g.giftId === 'tyshchenko_first_golden_ball') special = ' art-golden-ball';
+      else if (g.special === 'crest-seal' || g.giftId === 'grok_crest_seal_2025') special = ' art-crest-seal';
       else if (g.special) special = ' art-' + String(g.special).replace(/[^a-z0-9-]/gi, '');
       // Inline transform as hard fallback (works even if CSS vars fail)
-      return '<span class="tg-gift-item nft-art rarity-' + rar + special +
+      return '<span class="tg-gift-item nft-art rarity-' + rar + special + ' anim-' + (g.anim || 'float') +
         '" style="--gx:' + x.toFixed(1) + 'px;--gy:' + y.toFixed(1) + 'px;--gi:' + i +
         ';--art-hue:' + hue + ';--art-pattern:' + (g.pattern || 0) +
         ';transform:translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) scale(1);opacity:1;visibility:visible"' +
         ' title="' + title +
         '" data-gift-id="' + (g.giftId || '') + '" data-action="inspect-artifact" data-gift-uid="' + (g.id || '') + '">' +
         '<span class="nft-art-core" aria-hidden="true"></span>' +
-        '<span class="nft-art-ico">' + (g.ico || '★') + '</span>' +
+        '<span class="nft-art-ico tg-emoji-anim anim-' + (g.anim || 'float') + '">' + (g.mediaUrl ? ('<img class="tg-emoji-media" src="' + String(g.mediaUrl).replace(/"/g,'') + '" alt="">') : (g.ico || '★')) + '</span>' +
         '<span class="nft-art-wave" aria-hidden="true"></span></span>';
     }).join('');
     return '<div class="tg-gift-cloud tg-gift-expand mode-' + (mode || 'full') +
@@ -178,11 +179,13 @@ const Views = {
   _coachSquadCard() {
     const s = Store.get();
     const set = s.settings || {};
-    let name = set.coachName || 'Artem Serdiuk';
-    let photo = set.coachPhoto || '';
+    // Картка тренера ЗАВЖДИ з налаштувань клубу — НЕ з сесії поточного гравця
+    let name = (set.coachName && String(set.coachName).trim()) || 'Artem Serdiuk';
+    let photo = set.coachPhoto || set.coachPhotoUrl || '';
     try {
-      if (typeof AuthManager !== 'undefined' && AuthManager.displayName) name = AuthManager.displayName() || name;
-      if (!photo && typeof TelegramManager !== 'undefined' && TelegramManager.getUser) {
+      // Фото з Telegram — лише якщо поточний користувач реально тренер
+      const isCoachSession = typeof AuthManager !== 'undefined' && AuthManager.isCoach && AuthManager.isCoach();
+      if (!photo && isCoachSession && typeof TelegramManager !== 'undefined' && TelegramManager.getUser) {
         const u = TelegramManager.getUser();
         if (u && u.photo_url) photo = u.photo_url;
       }
@@ -204,8 +207,8 @@ const Views = {
       '<div class="pl-card-av-wrap"><div class="pl-card-av coach-av" style="border-color:#f0c14b;background:linear-gradient(145deg,#3d2e0a,#1a1408)">' + ph + '</div></div>' +
       '<div class="pl-card-body">' +
       '<div class="pl-card-name">★ ' + sanitize(name) + '</div>' +
-      '<div class="pl-card-meta">Головний тренер · METALIST</div>' +
-      '<div class="pl-card-att">Відвідуваність ' + (ach.attendancePct || 0) + '%</div>' +
+      '<div class="pl-card-meta">' + (typeof t==='function'?t('head_coach','Головний тренер'):'Головний тренер') + ' · METALIST</div>' +
+      '<div class="pl-card-att">' + (typeof t==='function'?t('attendance','Відвідуваність'):'Відвідуваність') + ' ' + (ach.attendancePct || 0) + '%</div>' +
       '<div class="coach-mini-stats">' +
         '<span title="У додатку">📱 ' + fmt(ach.appMs) + '</span>' +
         '<span title="На дошці">⚽ ' + fmt(ach.boardMs) + '</span>' +
@@ -307,7 +310,7 @@ const Views = {
 
     return `
       <div class="club-profile">
-        <div class="app-build-tag" aria-hidden="true">build 2026.10.27-b · full</div>
+        <div class="app-build-tag" aria-hidden="true">build 2026.10.28-c · full</div>
 
         <!-- Telegram-style profile card (coach/player) -->
         ${(() => {
@@ -552,7 +555,10 @@ const Views = {
       ? ('<div class="fifa-gifts">' + gifts.slice(0, 10).map(g => {
           const rar = g.rarity || 'common';
           const rarL = (typeof CoachTools !== 'undefined' && CoachTools.RARITY_LABEL && CoachTools.RARITY_LABEL[rar]) || rar;
-          const sp = (g.special === 'neural-horse' || g.giftId === 'neural_horse_tester') ? ' art-neural-horse' : '';
+          const sp = (g.special === 'neural-horse' || g.giftId === 'neural_horse_tester') ? ' art-neural-horse'
+            : (g.special === 'golden-ball' || g.giftId === 'tyshchenko_first_golden_ball') ? ' art-golden-ball'
+            : (g.special === 'crest-seal' || g.giftId === 'grok_crest_seal_2025') ? ' art-crest-seal'
+            : (g.special ? (' art-' + String(g.special).replace(/[^a-z0-9-]/gi, '')) : '');
           return '<span class="fifa-gift-chip nft-chip rarity-' + rar + sp + '" style="--art-hue:' + (g.hue != null ? g.hue : 42) + '" title="' +
             sanitize((g.label || '') + (g.serial ? (' · ' + g.serial) : '') + (g.note ? (' — ' + g.note) : '')) +
             '" data-action="inspect-artifact" data-gift-uid="' + (g.id || '') + '">' +
@@ -1225,7 +1231,7 @@ const Views = {
           '<div class="pl-card-body">' +
           '<div class="pl-card-name">#' + (p.number || '—') + ' ' + sanitize(name) + ' ' + this._giftStatusBadge(gifs, p.id) + '</div>' +
           '<div class="pl-card-meta">' + sanitize(p.position || '') + ' · ' + role + '</div>' +
-          '<div class="pl-card-att">Відвідуваність ' + att + '%</div>' +
+          '<div class="pl-card-att">' + (typeof t==='function'?t('attendance','Відвідуваність'):'Відвідуваність') + ' ' + att + '%</div>' +
           '</div></div>';
       }).join('');
       return `
@@ -1256,7 +1262,7 @@ const Views = {
         '<div class="pl-card-body">' +
         '<div class="pl-card-name">#' + (p.number || '—') + ' ' + sanitize(name) + ' ' + this._giftStatusBadge(gifs, p.id) + '</div>' +
         '<div class="pl-card-meta">' + sanitize(p.position || '') + ' · ' + role + '</div>' +
-        '<div class="pl-card-att">Відвідуваність ' + att + '%</div></div></div>';
+        '<div class="pl-card-att">' + (typeof t==='function'?t('attendance','Відвідуваність'):'Відвідуваність') + ' ' + att + '%</div></div></div>';
     }).join('');
 
     // coach stats strip
@@ -1565,11 +1571,22 @@ const Views = {
       const coachHtml = s.coachPhoto
         ? ('<img src="' + s.coachPhoto + '" style="width:100%;height:100%;object-fit:cover"/>')
         : 'АС';
+      const curLang = (typeof I18n !== 'undefined' && I18n.getLang) ? I18n.getLang() : (s.lang || 'uk');
+      const tt = (k, fb) => (typeof t === 'function' ? t(k, fb) : (fb || k));
       return `
-      <div class="st">Налаштування</div>
+      <div class="st">${tt('settings_title', 'Налаштування')}</div>
 
       <div class="card glass">
-        <div class="ct">Фото та логотип</div>
+        <div class="ct">${tt('settings_language', 'Мова інтерфейсу')}</div>
+        <p class="note-sm">${tt('settings_language_hint', '')}</p>
+        <div class="lang-switch" role="group" aria-label="${tt('settings_language', 'Мова')}">
+          <button type="button" class="btn lang-btn ${curLang === 'uk' ? 'btn-p' : 'btn-s'}" data-action="set-lang" data-lang="uk">🇺🇦 Українська</button>
+          <button type="button" class="btn lang-btn ${curLang === 'de' ? 'btn-p' : 'btn-s'}" data-action="set-lang" data-lang="de">🇩🇪 Deutsch</button>
+        </div>
+      </div>
+
+      <div class="card glass">
+        <div class="ct">${tt('settings_photos', 'Фото та логотип')}</div>
         <div class="settings-photo-row" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:center">
           <div style="text-align:center">
             <div class="logo-ph" style="width:72px;height:72px;border-radius:50%;margin:0 auto 8px;overflow:hidden;background:#1a3a5c;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff">${logoHtml}</div>
@@ -1615,7 +1632,7 @@ const Views = {
             <button type="button" class="btn btn-s" data-action="toggle-theme" data-theme-set="light">☀️ Світла</button>
           </div>
         </div>
-        <button type="button" class="btn btn-p" data-action="save-settings" style="margin-top:10px">Зберегти</button>
+        <button type="button" class="btn btn-p" data-action="save-settings" style="margin-top:10px">${typeof t==='function'?t('save','Зберегти'):'Зберегти'}</button>
       </div>
 
       <div class="card glass data-io">
@@ -1637,6 +1654,7 @@ const Views = {
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
           <button type="button" class="btn btn-p" data-action="add-artifact-json">Додати артефакт у каталог</button>
           <button type="button" class="btn btn-s" data-action="preview-artifacts">Каталог (${(typeof CoachTools !== 'undefined' && CoachTools.GIFT_CATALOG) ? CoachTools.GIFT_CATALOG.length : 0})</button>
+          <button type="button" class="btn btn-s" data-action="create-emoji-artifact">+ Emoji-артефакт</button>
         </div>
         <p class="note-sm" style="margin-top:8px">Після додавання артефакт з’явиться в картці гравця → «Нагородити».</p>
       </div>
@@ -1644,7 +1662,7 @@ const Views = {
       <div class="card"><div class="ct">Про застосунок</div>
         <p style="font-size:12px;color:var(--muted);line-height:1.6">
           Тренерська платформа · МЕТАЛІСТ ШТУТГАРТ<br>
-          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.27-b<br>
+          Schema v${typeof SCHEMA_VERSION !== 'undefined' ? SCHEMA_VERSION : 2} · build 2026.10.28-c<br>
           localStorage · Telegram Cloud
         </p>
       </div>`;
