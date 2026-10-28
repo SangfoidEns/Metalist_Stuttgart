@@ -2,13 +2,15 @@
 const App = {
   init() {
     try { (typeof CoachTools !== "undefined" && CoachTools.loadCustomArtifacts && CoachTools.loadCustomArtifacts());
+    try { if (typeof ClubBot !== 'undefined') ClubBot.startScheduler(); } catch (_) {}
     TelegramManager.init(); } catch (e) { console.warn('Telegram', e); }
     try { StorageManager.init(); } catch (e) {
       console.error('Storage init failed', e);
       try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(BACKUP_KEY); } catch (_) {}
       try { StorageManager.init(); } catch (e2) { console.error(e2); }
     }
-    try { if (typeof I18n !== 'undefined' && I18n.initFromStore) I18n.initFromStore(); } catch (e) { console.warn('i18n', e); }
+    try { if (typeof I18n !== 'undefined' && I18n.initFromStore) I18n.initFromStore();
+    try { if (typeof StorageManager !== 'undefined' && StorageManager.applyRosterMigrationIfAny) StorageManager.applyRosterMigrationIfAny(); } catch (_) {} } catch (e) { console.warn('i18n', e); }
     try { this.applyBranding(); } catch (e) { console.warn('branding', e); }
     try { this.applyThemeMode((Store.get().settings || {}).theme || 'dark'); } catch (e) { console.warn('theme', e); }
     this.bindEvents();
@@ -1763,13 +1765,23 @@ const App = {
       }
       if (t.dataset.tool) {
         const ab = Store.get().activeBoard;
+        if (!ab) return;
         ab.tool = t.dataset.tool;
-        // Лоток НЕ закриваємо автоматично — тренер сам згортає ⊕
-        // (раніше на <900px лоток миттєво закривався → здавалося, що «не розгортається»)
-        BoardEngine.renderToolbar();
+        // Після вибору інструмента з лотка — ховаємо панель (як у сучасних editor UX)
+        ab.toolsTrayOpen = false;
+        ab.paletteOpen = false;
+        try { document.body.classList.remove('tools-tray-open'); } catch (_) {}
         try {
-          document.body.classList.toggle('tools-tray-open', !!ab.toolsTrayOpen);
+          if (typeof BoardEngine !== 'undefined' && BoardEngine.closeToolsTray) {
+            BoardEngine.closeToolsTray(true);
+          }
         } catch (_) {}
+        try { BoardEngine.renderToolbar(); } catch (_) {}
+        const tray = document.getElementById('btbToolsTray');
+        if (tray) {
+          tray.classList.remove('open');
+          tray.setAttribute('aria-hidden', 'true');
+        }
         try { TelegramManager.haptic && TelegramManager.haptic('selection'); } catch (_) {}
         return;
       }
@@ -2844,3 +2856,15 @@ const App = {
 };
 
 /* ─── ACTIONS ───────────────────────────────────────────── */
+;try {
+  const _origRender = App.renderCurrent && App.renderCurrent.bind(App);
+  if (_origRender && !App._clubBotWrapped) {
+    App._clubBotWrapped = true;
+    App.renderCurrent = function () {
+      const r = _origRender.apply(this, arguments);
+      try { if (typeof CoachTools !== 'undefined' && CoachTools.bindClubBot) CoachTools.bindClubBot(document); } catch (_) {}
+      try { if (typeof ClubBot !== 'undefined' && ClubBot.autoPollEnabled && ClubBot.autoPollEnabled()) ClubBot.startScheduler(); } catch (_) {}
+      return r;
+    };
+  }
+} catch (_) {}

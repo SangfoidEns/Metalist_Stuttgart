@@ -2171,10 +2171,15 @@ const BoardEngine = {
         });
       });
       el.addEventListener('contextmenu', ev => {
+        // Long-press / right-click must NOT delete — only select.
+        // Delete: кнопка 🗑 на панелі інструментів.
         ev.preventDefault();
-        s.activeBoard.objects = s.activeBoard.objects.filter(x => x.id !== el.dataset.id);
-        this.pushHistory();
-        this.render();
+        ev.stopPropagation();
+        try {
+          const ab = Store.get().activeBoard;
+          if (ab) ab.selectedId = el.dataset.id;
+          this.renderTokens && this.renderTokens();
+        } catch (_) {}
       });
     });
   },
