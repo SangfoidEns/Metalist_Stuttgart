@@ -5,13 +5,15 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { pathToFileURL } = require('url');
 
 let mainWindow = null;
 let api = null;
 
 async function loadApi() {
   if (api) return api;
-  api = await import(path.join(__dirname, 'server.mjs'));
+  // Windows needs file:// URLs for dynamic ESM import (ERR_UNSUPPORTED_ESM_URL_SCHEME)
+  api = await import(pathToFileURL(path.join(__dirname, 'server.mjs')).href);
   return api;
 }
 
