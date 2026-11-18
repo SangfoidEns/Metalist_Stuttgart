@@ -1,4 +1,5 @@
 node_modules/
+dist/
 data/*.json
 data/*.tmp
 data/*.meta.json
@@ -7,3 +8,4 @@ data/.gitkeep
 .env
 .env.*
 *.log
+*.zip

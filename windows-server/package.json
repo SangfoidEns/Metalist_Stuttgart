@@ -8,12 +8,14 @@
   "scripts": {
     "start": "electron .",
     "server-only": "node server.mjs",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "pack:win": "electron-packager . STGmetal-Server --platform=win32 --arch=x64 --out=dist --overwrite --asar --prune=true --ignore=\"dist|tests|\\.git\""
   },
   "engines": {
     "node": ">=18"
   },
   "devDependencies": {
+    "@electron/packager": "^20.3.0",
     "electron": "^45.3.4"
   }
 }

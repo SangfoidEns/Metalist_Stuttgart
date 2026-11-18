@@ -2,7 +2,7 @@
  * STGmetal Windows desktop companion — Electron shell.
  * Simple window UI; HTTP API matches SangfoidEns/STGmetal.
  */
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -92,6 +92,82 @@ ipcMain.handle('club:import', async () => {
   } catch (err) {
     return { ok: false, error: err.message || String(err) };
   }
+});
+
+ipcMain.handle('folder:statusPaths', async () => {
+  const mod = await loadApi();
+  const s = mod.getStatus();
+  return { ok: true, dataDir: s.dataDir, dataFile: s.dataFile };
+});
+
+ipcMain.handle('folder:choose', async () => {
+  const mod = await loadApi();
+  const current = mod.getDataDir();
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Обрати папку даних клубу',
+    defaultPath: current,
+    properties: ['openDirectory', 'createDirectory']
+  });
+  if (result.canceled || !result.filePaths || !result.filePaths[0]) {
+    return { ok: false, error: 'cancelled' };
+  }
+  try {
+    const paths = mod.setDataDir(result.filePaths[0], { migrate: true });
+    return { ok: true, ...paths, status: mod.getStatus() };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+
+ipcMain.handle('folder:open', async () => {
+  const mod = await loadApi();
+  const dir = mod.getDataDir();
+  fs.mkdirSync(dir, { recursive: true });
+  const err = await shell.openPath(dir);
+  if (err) return { ok: false, error: err, path: dir };
+  return { ok: true, path: dir };
+});
+
+ipcMain.handle('folder:migrateIn', async () => {
+  const mod = await loadApi();
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Міграція: обрати JSON клубу з іншої папки',
+    properties: ['openFile'],
+    filters: [{ name: 'JSON', extensions: ['json'] }]
+  });
+  if (result.canceled || !result.filePaths || !result.filePaths[0]) {
+    return { ok: false, error: 'cancelled' };
+  }
+  const src = result.filePaths[0];
+  try {
+    const raw = fs.readFileSync(src, 'utf8');
+    const saved = mod.importClubFile(raw);
+    // Also keep a copy named club-data.json in the active data folder
+    const dest = mod.getStatus().dataFile;
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(src, dest + '.migrated-source.json');
+    return { ok: true, from: src, to: dest, meta: saved, status: mod.getStatus() };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+
+ipcMain.handle('folder:migrateOut', async () => {
+  const mod = await loadApi();
+  const data = mod.exportClubFile();
+  if (!data) return { ok: false, error: 'empty' };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Міграція: обрати папку призначення',
+    properties: ['openDirectory', 'createDirectory']
+  });
+  if (result.canceled || !result.filePaths || !result.filePaths[0]) {
+    return { ok: false, error: 'cancelled' };
+  }
+  const destDir = result.filePaths[0];
+  const dest = path.join(destDir, 'club-data.json');
+  fs.mkdirSync(destDir, { recursive: true });
+  fs.writeFileSync(dest, JSON.stringify(data, null, 2), 'utf8');
+  return { ok: true, path: dest };
 });
 
 app.whenReady().then(async () => {

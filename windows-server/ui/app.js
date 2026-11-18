@@ -20,9 +20,12 @@
     $('urlText').textContent = (status && status.url) || ('http://127.0.0.1:' + (($('portInput').value) || 8787));
     if (status && status.port) $('portInput').value = String(status.port);
 
+    $('dataDirText').textContent = (status && status.dataDir) || '—';
+    $('dataFileText').textContent = (status && status.dataFile) || '—';
+
     const club = status && status.club;
     if (!club || !club.hasPayload) {
-      $('clubMeta').textContent = 'файлу ще немає — завантажте JSON тренера';
+      $('clubMeta').textContent = 'файлу ще немає — імпортуйте або мігруйте JSON тренера';
     } else {
       const when = club.updatedAt ? String(club.updatedAt).slice(0, 19).replace('T', ' ') : '—';
       $('clubMeta').textContent =
@@ -37,7 +40,7 @@
 
   async function refresh() {
     if (!api) {
-      msg('Відкрийте через Electron (start.bat), не в браузері', 'err');
+      msg('Відкрийте STGmetal-Server.exe (не в браузері)', 'err');
       return;
     }
     try {
@@ -76,6 +79,23 @@
     }
   });
 
+  $('btnChooseFolder').addEventListener('click', async () => {
+    const res = await api.chooseFolder();
+    if (!res.ok) {
+      if (res.error !== 'cancelled') msg(res.error || 'помилка', 'err');
+      return;
+    }
+    if (res.status) paint(res.status);
+    else await refresh();
+    msg('Папку даних змінено: ' + res.dataDir, 'ok');
+  });
+
+  $('btnOpenFolder').addEventListener('click', async () => {
+    const res = await api.openFolder();
+    if (!res.ok) msg(res.error || 'не вдалося відкрити', 'err');
+    else msg('Відкрито: ' + res.path, 'ok');
+  });
+
   $('btnImport').addEventListener('click', async () => {
     const res = await api.importClub();
     if (!res.ok) {
@@ -94,6 +114,27 @@
       return;
     }
     msg('Збережено: ' + res.path, 'ok');
+  });
+
+  $('btnMigrateIn').addEventListener('click', async () => {
+    const res = await api.migrateIn();
+    if (!res.ok) {
+      if (res.error !== 'cancelled') msg(res.error || 'помилка міграції', 'err');
+      return;
+    }
+    if (res.status) paint(res.status);
+    else await refresh();
+    msg('Мігровано з ' + res.from + ' → сервер', 'ok');
+  });
+
+  $('btnMigrateOut').addEventListener('click', async () => {
+    const res = await api.migrateOut();
+    if (!res.ok) {
+      if (res.error === 'empty') msg('На сервері ще немає клубного JSON', 'err');
+      else if (res.error !== 'cancelled') msg(res.error || 'помилка міграції', 'err');
+      return;
+    }
+    msg('Скопійовано в ' + res.path, 'ok');
   });
 
   refresh();

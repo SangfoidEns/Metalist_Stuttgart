@@ -328,8 +328,31 @@ function createHandler() {
   };
 }
 
+function defaultDataFile() {
+  return process.env.CLUB_DATA_FILE || path.join(__dirname, 'data', 'club-data.json');
+}
+
+export function getDataDir() {
+  return path.dirname(defaultDataFile());
+}
+
+/** Point club storage at a folder (creates club-data.json inside). Optionally copy existing payload. */
+export function setDataDir(dirPath, { migrate = true } = {}) {
+  if (!dirPath || typeof dirPath !== 'string') throw new Error('invalid_data_dir');
+  const abs = path.resolve(dirPath);
+  fs.mkdirSync(abs, { recursive: true });
+  const nextFile = path.join(abs, 'club-data.json');
+  const prevFile = defaultDataFile();
+  if (migrate && prevFile !== nextFile && fs.existsSync(prevFile) && !fs.existsSync(nextFile)) {
+    fs.copyFileSync(prevFile, nextFile);
+  }
+  process.env.CLUB_DATA_FILE = nextFile;
+  return { dataDir: abs, dataFile: nextFile };
+}
+
 export function getStatus() {
   const club = readClub();
+  const dataFile = defaultDataFile();
   return {
     ...state,
     hasToken: Bot.hasToken(),
@@ -341,7 +364,8 @@ export function getStatus() {
       hasPayload: !!club.payload,
       playerCount: club.payload && Array.isArray(club.payload.players) ? club.payload.players.length : 0
     },
-    dataFile: process.env.CLUB_DATA_FILE || path.join(__dirname, 'data', 'club-data.json')
+    dataFile,
+    dataDir: path.dirname(dataFile)
   };
 }
 

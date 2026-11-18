@@ -37,19 +37,30 @@
         <button type="button" class="btn" id="btnStop">■ Стоп</button>
         <button type="button" class="btn ghost" id="btnCopy">Копіювати URL</button>
       </div>
-      <p class="hint">Клієнт: <strong>SangfoidEns/STGmetal</strong>. У браузері/Telegram задайте
-        <code>window.METALIST_API = 'http://127.0.0.1:8787'</code> (або ваш LAN IP).</p>
+      <p class="hint">У клієнті STGmetal: <code>window.METALIST_API = 'http://127.0.0.1:8787'</code></p>
     </section>
 
     <section class="card">
-      <h2>JSON клубу (тренер / гравець)</h2>
+      <h2>Папка даних</h2>
+      <p class="meta"><span class="lbl">Поточна папка</span><code id="dataDirText">—</code></p>
+      <p class="meta"><span class="lbl">Файл клубу</span><code id="dataFileText">—</code></p>
+      <div class="actions">
+        <button type="button" class="btn primary" id="btnChooseFolder">Обрати папку</button>
+        <button type="button" class="btn" id="btnOpenFolder">Відкрити в Провіднику</button>
+      </div>
+      <p class="hint">Тут зберігається <code>club-data.json</code>. Можна вказати будь-яку папку на диску.</p>
+    </section>
+
+    <section class="card">
+      <h2>Файли клубу / міграція</h2>
       <p id="clubMeta" class="meta">файлу ще немає</p>
       <div class="actions">
-        <button type="button" class="btn primary" id="btnImport">⬆ Завантажити JSON на сервер</button>
-        <button type="button" class="btn" id="btnExport">⬇ Зберегти JSON з сервера</button>
+        <button type="button" class="btn primary" id="btnImport">⬆ Імпорт JSON</button>
+        <button type="button" class="btn" id="btnExport">⬇ Експорт JSON</button>
+        <button type="button" class="btn" id="btnMigrateIn">Міграція з файлу → сервер</button>
+        <button type="button" class="btn" id="btnMigrateOut">Міграція з сервера → папка</button>
       </div>
-      <p class="hint">Тренер викладає повний snapshot; гравці читають через STGmetal
-        (<code>GET/POST /api/club-data</code>). Можна також просто передати файл вручну.</p>
+      <p class="hint">Імпорт/міграція підставляє JSON тренера на сервер. Експорт/міграція у папку — щоб перенести на інший ПК.</p>
     </section>
 
     <p id="msg" class="msg" role="status"></p>

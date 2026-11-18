@@ -139,6 +139,15 @@ input[type="number"] {
   font-size: 0.9rem;
   line-height: 1.45;
 }
+.meta .lbl { margin-top: 8px; }
+.meta code {
+  display: block;
+  margin-top: 2px;
+  padding: 8px 10px;
+  background: #f3f0ea;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
 .msg {
   min-height: 1.3em;
   margin: 4px 2px 0;
