@@ -1,5 +1,5 @@
 /**
- * API for METALIST STUTTGART Mini App + Club Bot + JSON club file sync.
+ * API for METALIST STUTTGART Mini App + Club Bot.
  *
  * Endpoints:
  *   GET  /health
@@ -13,38 +13,22 @@
  *   POST /api/bot/send-text         { chatId?, text }
  *   POST /api/bot/schedule-check    { trainings: [...], chatId?, hoursBefore?: 36 }
  *        — для кожного тренування в вікні ~36h надсилає poll (анти-дубль)
- *   GET  /api/club/status           — JSON club file presence for coach/player
- *   GET  /api/club/download?role=coach|player
- *   GET  /api/club/download/file?role=coach|player  — attachment download
- *   POST /api/club/upload?role=coach|player         — body: club JSON
  *
  * Env:
  *   TELEGRAM_BOT_TOKEN
  *   TELEGRAM_CLUB_CHAT_ID
  *   BOT_API_SECRET          (optional; if set, require header X-Bot-Secret)
  *   PORT / CORS_ORIGIN / INITDATA_MAX_AGE_SEC
- *   CLUB_DATA_DIR           (optional; default server/data/club)
  */
 import http from 'node:http';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { validateInitData } from './validateInitData.mjs';
 import * as Bot from './telegramBot.mjs';
-import * as ClubStore from './clubStore.mjs';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 8787);
-const HOST = process.env.HOST || '0.0.0.0';
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const MAX_AGE = Number(process.env.INITDATA_MAX_AGE_SEC || 86400);
 const BOT_SECRET = process.env.BOT_API_SECRET || '';
-const CLUB_DATA_DIR = ClubStore.resolveDataDir(process.env.CLUB_DATA_DIR);
-const SERVE_UI = process.env.SERVE_UI !== '0';
-const UI_ROOT = process.env.UI_ROOT
-  ? path.resolve(process.env.UI_ROOT)
-  : path.join(__dirname, '..', 'windows-server', 'ui');
 
 /** trainingId -> last poll ISO time (in-memory; restart resets — OK for MVP) */
 const pollSent = new Map();
@@ -78,51 +62,6 @@ function readBody(req, limit = 512 * 1024) {
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     req.on('error', reject);
   });
-}
-
-function sendRaw(res, status, body, headers = {}) {
-  const buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body), 'utf8');
-  res.writeHead(status, Object.assign({
-    'Access-Control-Allow-Origin': CORS_ORIGIN,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Bot-Secret',
-    'Cache-Control': 'no-store',
-    'Content-Length': buf.length
-  }, headers));
-  res.end(buf);
-}
-
-function contentTypeFor(filePath) {
-  const ext = path.extname(filePath).toLowerCase();
-  if (ext === '.html') return 'text/html; charset=utf-8';
-  if (ext === '.js') return 'text/javascript; charset=utf-8';
-  if (ext === '.css') return 'text/css; charset=utf-8';
-  if (ext === '.svg') return 'image/svg+xml';
-  if (ext === '.json') return 'application/json; charset=utf-8';
-  if (ext === '.png') return 'image/png';
-  if (ext === '.ico') return 'image/x-icon';
-  return 'application/octet-stream';
-}
-
-function tryServeUi(url, res) {
-  if (!SERVE_UI) return false;
-  let rel = url.pathname;
-  if (rel === '/' || rel === '/ui' || rel === '/ui/') rel = '/index.html';
-  if (rel.startsWith('/ui/')) rel = rel.slice(3);
-  if (rel.includes('..')) return false;
-  const fp = path.join(UI_ROOT, rel.replace(/^\//, ''));
-  if (!fp.startsWith(UI_ROOT)) return false;
-  if (!fs.existsSync(fp) || !fs.statSync(fp).isFile()) return false;
-  sendRaw(res, 200, fs.readFileSync(fp), { 'Content-Type': contentTypeFor(fp) });
-  return true;
-}
-
-function roleFrom(url, body) {
-  return ClubStore.normalizeRole(
-    url.searchParams.get('role') ||
-    (body && (body.role || body.as)) ||
-    'coach'
-  );
 }
 
 function parseJson(raw) {
@@ -318,82 +257,6 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // ── JSON club file (coach / player) ───────────────────
-    if (req.method === 'GET' && url.pathname === '/api/club/status') {
-      if (!requireBotSecret(req, res)) return;
-      const st = ClubStore.status(CLUB_DATA_DIR);
-      send(res, 200, {
-        ok: true,
-        service: 'metalist-stuttgart-api',
-        port: PORT,
-        url: `http://127.0.0.1:${PORT}`,
-        dataDir: st.dataDir,
-        roles: st.roles
-      });
-      return;
-    }
-
-    if (req.method === 'GET' && (url.pathname === '/api/club/download' || url.pathname === '/api/club/download/file')) {
-      if (!requireBotSecret(req, res)) return;
-      const role = roleFrom(url, null);
-      if (!role) {
-        send(res, 400, { ok: false, error: 'invalid_role', message: 'role must be coach or player' });
-        return;
-      }
-      const loaded = ClubStore.loadClub(role, CLUB_DATA_DIR);
-      if (!loaded) {
-        send(res, 404, { ok: false, error: 'not_found', message: `No ${role} club JSON on server` });
-        return;
-      }
-      if (url.pathname === '/api/club/download/file') {
-        const name = ClubStore.downloadFilename(role, loaded.meta);
-        sendRaw(res, 200, loaded.text, {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Content-Disposition': `attachment; filename="${name}"`
-        });
-        return;
-      }
-      send(res, 200, {
-        ok: true,
-        role,
-        meta: loaded.meta,
-        club: loaded.data
-      });
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/club/upload') {
-      if (!requireBotSecret(req, res)) return;
-      let body = {};
-      let raw = '';
-      try {
-        // Club JSON may include base64 photos — allow up to 25 MiB
-        raw = await readBody(req, 25 * 1024 * 1024);
-        body = parseJson(raw);
-      } catch (e) {
-        send(res, e.message === 'body_too_large' ? 413 : 400, { ok: false, error: e.message || 'invalid_json' });
-        return;
-      }
-      const role = roleFrom(url, body);
-      if (!role) {
-        send(res, 400, { ok: false, error: 'invalid_role', message: 'role must be coach or player' });
-        return;
-      }
-      // Accept either { club: {...} } wrapper or bare club payload
-      const payload = body.club && typeof body.club === 'object' && !Array.isArray(body.club)
-        ? body.club
-        : body;
-      try {
-        const meta = ClubStore.saveClub(role, payload, CLUB_DATA_DIR);
-        send(res, 200, { ok: true, role, meta });
-      } catch (e) {
-        send(res, 400, { ok: false, error: e.message || 'save_failed' });
-      }
-      return;
-    }
-
-    if (req.method === 'GET' && tryServeUi(url, res)) return;
-
     send(res, 404, { ok: false, error: 'not_found' });
   } catch (e) {
     console.error('[server]', e);
@@ -401,19 +264,8 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-ClubStore.ensureDir(CLUB_DATA_DIR);
-
-export function startServer(listenPort = PORT, listenHost = HOST) {
-  return new Promise((resolve) => {
-    server.listen(listenPort, listenHost, () => {
-      console.info(
-        `[metalist-api] http://127.0.0.1:${listenPort} token=${Bot.hasToken() ? 'set' : 'MISSING'} chat=${Bot.defaultChatId() || 'none'} clubDir=${CLUB_DATA_DIR}`
-      );
-      resolve(server);
-    });
-  });
-}
-
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  startServer();
-}
+server.listen(PORT, () => {
+  console.info(
+    `[metalist-api] :${PORT} token=${Bot.hasToken() ? 'set' : 'MISSING'} chat=${Bot.defaultChatId() || 'none'}`
+  );
+});

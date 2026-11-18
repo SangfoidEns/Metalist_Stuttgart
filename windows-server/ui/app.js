@@ -1,85 +1,73 @@
 (() => {
   const $ = (id) => document.getElementById(id);
-  const msg = (text, kind) => {
-    const el = $('clubMsg');
+  const api = window.desktop;
+
+  function msg(text, kind) {
+    const el = $('msg');
     if (!el) return;
     el.textContent = text || '';
     el.className = 'msg' + (kind ? ' ' + kind : '');
-  };
+  }
 
-  function fmtMeta(info) {
-    if (!info || !info.present) return 'немає файлу / no file';
-    const kb = info.size ? Math.round(info.size / 1024) : 0;
-    const when = info.updatedAt || info.storedAt || '—';
-    const club = info.club ? ` · ${info.club}` : '';
-    return `${kb} КБ · ${when}${club}`;
+  function paint(status) {
+    const running = !!(status && status.running);
+    const badge = $('badge');
+    badge.textContent = running ? 'працює' : 'вимкнено';
+    badge.className = 'badge ' + (running ? 'on' : 'off');
+    $('statusText').textContent = running
+      ? ('онлайн · ' + (status.host || '127.0.0.1') + (status.lanMode ? ' (LAN)' : ' (локально)'))
+      : 'сервер зупинено';
+    $('urlText').textContent = (status && status.url) || ('http://127.0.0.1:' + (($('portInput').value) || 8787));
+    if (status && status.port) $('portInput').value = String(status.port);
+
+    const club = status && status.club;
+    if (!club || !club.hasPayload) {
+      $('clubMeta').textContent = 'файлу ще немає — завантажте JSON тренера';
+    } else {
+      const when = club.updatedAt ? String(club.updatedAt).slice(0, 19).replace('T', ' ') : '—';
+      $('clubMeta').textContent =
+        (club.playerCount || 0) + ' гравців · оновлено ' + when +
+        (club.updatedBy ? ' · ' + club.updatedBy : '');
+    }
+
+    $('btnStart').disabled = running;
+    $('btnStop').disabled = !running;
+    $('portInput').disabled = running;
   }
 
   async function refresh() {
-    try {
-      const res = await fetch('/api/club/status');
-      const data = await res.json();
-      if (!res.ok || data.ok === false) throw new Error(data.message || data.error || 'status failed');
-
-      $('srvState').textContent = 'працює / running';
-      $('srvState').className = 'is-up';
-      $('srvUrl').textContent = data.url || location.origin;
-      $('srvPort').textContent = String(data.port || location.port || 8787);
-      $('srvData').textContent = data.dataDir || '—';
-      $('meta-coach').textContent = fmtMeta(data.roles && data.roles.coach);
-      $('meta-player').textContent = fmtMeta(data.roles && data.roles.player);
-    } catch (e) {
-      $('srvState').textContent = 'недоступний / down';
-      $('srvState').className = 'is-down';
-      msg(String(e.message || e), 'err');
+    if (!api) {
+      msg('Відкрийте через Electron (start.bat), не в браузері', 'err');
+      return;
     }
-
     try {
-      const res = await fetch('/api/bot/status');
-      const data = await res.json();
-      if (res.ok && data.ok) {
-        const name = data.bot && data.bot.username ? '@' + data.bot.username : '—';
-        $('botMeta').textContent = data.hasToken
-          ? `токен задано · бот ${name} · chat ${data.defaultChat || '—'}`
-          : 'TELEGRAM_BOT_TOKEN не задано (клуб JSON працює без токена)';
-      } else {
-        $('botMeta').textContent = data.message || data.error || 'bot status unavailable';
-      }
-    } catch (_) {
-      $('botMeta').textContent = 'bot status unavailable';
-    }
-  }
-
-  async function upload(role, file) {
-    if (!file) return;
-    msg(`Завантаження ${role}…`);
-    try {
-      const text = await file.text();
-      JSON.parse(text); // validate JSON early
-      const res = await fetch('/api/club/upload?role=' + encodeURIComponent(role), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: text
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.ok === false) throw new Error(data.message || data.error || ('HTTP ' + res.status));
-      msg(`OK: ${role} збережено (${Math.round((data.meta && data.meta.size || 0) / 1024)} КБ)`, 'ok');
-      await refresh();
+      paint(await api.status());
     } catch (e) {
       msg(String(e.message || e), 'err');
     }
   }
 
-  function download(role) {
-    window.location.href = '/api/club/download/file?role=' + encodeURIComponent(role);
-  }
-
-  $('btnRefresh')?.addEventListener('click', () => {
-    msg('');
-    refresh();
+  $('btnStart').addEventListener('click', async () => {
+    msg('Запуск…');
+    const port = Number($('portInput').value || 8787);
+    const res = await api.start({ port, host: '127.0.0.1' });
+    if (!res.ok) {
+      msg(res.error || 'не вдалося стартувати', 'err');
+      if (res.status) paint(res.status);
+      return;
+    }
+    paint(res.status);
+    msg('Сервер запущено на ' + res.status.url, 'ok');
   });
-  $('btnCopyUrl')?.addEventListener('click', async () => {
-    const url = $('srvUrl')?.textContent || location.origin;
+
+  $('btnStop').addEventListener('click', async () => {
+    const res = await api.stop();
+    paint(res.status);
+    msg('Сервер зупинено', 'ok');
+  });
+
+  $('btnCopy').addEventListener('click', async () => {
+    const url = $('urlText').textContent;
     try {
       await navigator.clipboard.writeText(url);
       msg('URL скопійовано', 'ok');
@@ -88,17 +76,26 @@
     }
   });
 
-  document.querySelectorAll('input[data-upload]').forEach((inp) => {
-    inp.addEventListener('change', () => {
-      const role = inp.getAttribute('data-upload');
-      const file = inp.files && inp.files[0];
-      upload(role, file).finally(() => { inp.value = ''; });
-    });
+  $('btnImport').addEventListener('click', async () => {
+    const res = await api.importClub();
+    if (!res.ok) {
+      if (res.error !== 'cancelled') msg(res.error || 'помилка імпорту', 'err');
+      return;
+    }
+    await refresh();
+    msg('JSON клубу завантажено на сервер', 'ok');
   });
-  document.querySelectorAll('[data-download]').forEach((btn) => {
-    btn.addEventListener('click', () => download(btn.getAttribute('data-download')));
+
+  $('btnExport').addEventListener('click', async () => {
+    const res = await api.exportClub();
+    if (!res.ok) {
+      if (res.error === 'empty') msg('На сервері ще немає клубного JSON', 'err');
+      else if (res.error !== 'cancelled') msg(res.error || 'помилка експорту', 'err');
+      return;
+    }
+    msg('Збережено: ' + res.path, 'ok');
   });
 
   refresh();
-  setInterval(refresh, 15000);
+  setInterval(refresh, 4000);
 })();

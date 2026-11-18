@@ -1,14 +1,19 @@
 {
-  "name": "metalist-stuttgart-windows-server",
+  "name": "stgmetal-windows-server",
   "version": "1.0.0",
   "private": true,
-  "description": "Windows local companion server for MetaList Stuttgart (JSON club file + Telegram bot API)",
+  "description": "Windows desktop server for SangfoidEns/STGmetal (club JSON + Telegram bot API)",
+  "main": "electron-main.cjs",
   "type": "module",
   "scripts": {
-    "start": "node src/main.mjs",
-    "server": "node ../server/index.mjs"
+    "start": "electron .",
+    "server-only": "node server.mjs",
+    "test": "node --test tests/*.test.js"
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "electron": "^45.3.4"
   }
 }

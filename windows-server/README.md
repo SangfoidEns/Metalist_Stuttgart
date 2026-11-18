@@ -1,113 +1,102 @@
-# MetaList Stuttgart — Windows companion server
+# STGmetal — Windows desktop server
 
-Local / LAN companion for the [MetaList Stuttgart](https://github.com/SangfoidEns/Metalist_Stuttgart) client.
+Local **Windows app** (Electron window) that runs the HTTP companion for
+[`SangfoidEns/STGmetal`](https://github.com/SangfoidEns/STGmetal).
 
-## Why Node.js (not .NET)
+Light Ukrainian UI: **Старт / Стоп**, статус, URL, порт, завантаження/збереження JSON клубу.
 
-The client already talks to a **Node HTTP API** on port **8787** (`ClubBot.apiBase()`, `ms_auth_api`, Telegram `validate`). Extending that stack keeps one protocol and one runtime. A separate .NET listener would duplicate the bot/auth surface for little gain on Windows.
+## Why Electron (not a browser panel)
+
+STGmetal already speaks Node HTTP (`/api/club-data` on port **8787**). This app wraps that API in a real desktop window so the coach can start/stop the server and manage the club JSON without opening a browser tab.
 
 ## Requirements
 
-- Windows 10/11 (or any OS with Node)
+- Windows 10/11
 - [Node.js 18+](https://nodejs.org/)
 
-## How to run
+## Run
 
 ```bat
 cd windows-server
+npm install
 start.bat
 ```
 
-Or PowerShell:
+Or:
 
 ```powershell
 cd windows-server
-.\start.ps1
+npm install
+npm start
 ```
 
-Or from repo root:
+Headless API only (no window):
 
-```bash
-npm run auth-server
-# or
-node windows-server/src/main.mjs
+```bat
+npm run server-only
 ```
 
-- **Default port:** `8787`
-- **Control panel:** http://127.0.0.1:8787/
-- **Stop:** Ctrl+C in the console window (or close it)
+- **Default URL:** http://127.0.0.1:8787  
+- **Default bind:** `127.0.0.1` (loopback only)
 
-Optional env:
+## Connect STGmetal
 
-| Variable | Meaning |
-|----------|---------|
-| `PORT` | Listen port (default `8787`) |
-| `TELEGRAM_BOT_TOKEN` | Club bot (optional for JSON club sync) |
-| `TELEGRAM_CLUB_CHAT_ID` | Default group chat id |
-| `BOT_API_SECRET` | If set, require `X-Bot-Secret` |
-| `CLUB_DATA_DIR` | Where coach/player JSON files are stored |
-| `OPEN_UI` | `0` to skip opening the browser |
-
-Point the Mini App / browser client at this server:
+In the STGmetal Mini App / browser session:
 
 ```js
-localStorage.setItem('ms_auth_api', 'http://127.0.0.1:8787');
+window.METALIST_API = 'http://127.0.0.1:8787'
 ```
 
-## Protocol (what the client expects)
+Then reload. Club sync uses `GET/POST /api/club-data` (coach full write, player chat/self profile).
 
-### Discovery
+## Club JSON transfer
 
-1. `window.__MS_AUTH_API__`
-2. `<meta name="ms-auth-api">`
-3. `localStorage.ms_auth_api`
-4. Fallback: `http://127.0.0.1:8787`
+| Path | Who |
+|------|-----|
+| App buttons **Завантажити / Зберегти JSON** | Local desktop (file dialogs via Electron) |
+| `GET /api/club-data` | Any STGmetal client with `METALIST_API` |
+| `POST /api/club-data` | Coach (full) / player (chat + own profile) per STGmetal rules |
 
-### Existing bot / auth API
+Stored file: `windows-server/data/club-data.json`.
 
-| Method | Path | Notes |
-|--------|------|-------|
-| GET | `/health` | Liveness |
-| POST | `/api/telegram/validate` | `{ initData }` HMAC check |
-| GET | `/api/bot/status` | Bot identity |
-| GET | `/api/bot/discover-chats` | Find group chat ids |
-| POST | `/api/bot/attendance-poll` | Poll ~36h before training |
-| POST | `/api/bot/training-plan` | Plan message |
-| POST | `/api/bot/match-lineup` | Lineup message |
-| POST | `/api/bot/club-event` | Event message |
-| POST | `/api/bot/send-text` | Free text |
-| POST | `/api/bot/schedule-check` | Auto poll window |
+## Security defaults
 
-### JSON club file transfer (“Johnson” club file)
+| Setting | Default | Notes |
+|---------|---------|--------|
+| `HOST` | `127.0.0.1` | Not `0.0.0.0` |
+| `CORS_ORIGIN` | loopback Origin only | Never defaults to `*` |
+| LAN bind (`0.0.0.0`) | **blocked** unless `CLUB_WRITE_SECRET` or `TELEGRAM_BOT_TOKEN` | Bot on LAN also needs `BOT_API_SECRET` |
+| Club POST | STGmetal `clubWriteAllowed` | `X-Club-Key` / Telegram `initData` / open only on loopback without secrets |
 
-The client models **coach** and **player** roles and exchanges a **JSON club snapshot** (`metalist_full_migration` / export payload / `metalist_roster_migration`). There was no HTTP club-file API before; this companion adds matching endpoints and client buttons.
+Optional `.env` (same names as STGmetal):
 
-| Method | Path | Role |
-|--------|------|------|
-| GET | `/api/club/status` | Presence + meta for `coach` and `player` |
-| POST | `/api/club/upload?role=coach\|player` | Body = club JSON (or `{ "club": {…} }`) |
-| GET | `/api/club/download?role=coach\|player` | `{ ok, role, meta, club }` |
-| GET | `/api/club/download/file?role=coach\|player` | Attachment download |
+```
+PORT=8787
+HOST=127.0.0.1
+CLUB_WRITE_SECRET=
+TELEGRAM_BOT_TOKEN=
+BOT_API_SECRET=
+CORS_ORIGIN=http://127.0.0.1:43127
+```
 
-**Flow**
+## Protocol (STGmetal)
 
-1. **Coach** exports / pushes club JSON → `POST /api/club/upload?role=coach`
-2. **Player** pulls coach pack → `GET /api/club/download?role=coach` (or downloads the coach file from the panel) and imports it in the app
-3. **Player** may upload their own slice → `POST /api/club/upload?role=player`
-4. Files are stored under `windows-server/data/club/` as `metalist_club_coach.json` / `metalist_club_player.json`
-
-In the web client: **Settings → На сервер / З сервера** (visible for coach and player).
+| Method | Path |
+|--------|------|
+| GET | `/health` |
+| GET/POST | `/api/club-data` |
+| POST | `/api/telegram/validate` |
+| GET/POST | `/api/bot/*` |
 
 ## Layout
 
 ```
 windows-server/
-  README.md
-  start.bat / start.ps1
-  src/main.mjs      # opens panel + starts ../server
-  ui/               # control panel (status, upload/download)
-  data/club/        # stored club JSON files
-server/
-  index.mjs         # shared HTTP API
-  clubStore.mjs     # coach/player file store
+  electron-main.cjs   # desktop window
+  preload.cjs
+  server.mjs          # STGmetal-compatible HTTP API
+  lib/                # clubData, telegramBot, validateInitData (from STGmetal)
+  ui/                 # light window UI
+  start.bat
+  data/               # club-data.json
 ```

@@ -224,8 +224,6 @@ const CoachTools = {
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="timer">▶ Старт сесії</button>
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="sync-push">☁ ${typeof t==='function'?t('cloud_save_btn'):'Зберегти в Telegram Cloud'}</button>
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="sync-pull">☁ Завантажити з Cloud</button>
-          <button type="button" class="btn btn-s coach-tool" data-coach-tool="server-push">⬆ На локальний сервер</button>
-          <button type="button" class="btn btn-s coach-tool" data-coach-tool="server-pull">⬇ З локального сервера</button>
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="migrate-roster">🔄 Міграція ВСІХ даних (Telegram)</button>
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="export">📦 Експорт / Share JSON</button>
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="board">⛶ Тактична дошка</button>
@@ -242,8 +240,6 @@ const CoachTools = {
       case 'timer': return this.startSessionTimers();
       case 'sync-push': return this.syncCloudNow();
       case 'sync-pull': return this.pullCloudNow();
-      case 'server-push': return (typeof ClubSync !== 'undefined' && ClubSync.push) ? ClubSync.push() : null;
-      case 'server-pull': return (typeof ClubSync !== 'undefined' && ClubSync.pull) ? ClubSync.pull() : null;
       case 'migrate-roster': return this.migrateRoster();
       case 'export': return this.exportAndShare();
       case 'board':
@@ -822,167 +818,6 @@ const ClubBot = {
   }
 };
 if (typeof window !== 'undefined') window.ClubBot = ClubBot;
-
-/**
- * ClubSync — HTTP upload/download of JSON club file to the local companion server.
- * Roles match AuthManager: coach | player (guest uses player slot for pull-only convenience).
- */
-const ClubSync = {
-  apiBase() {
-    return (typeof ClubBot !== 'undefined' && ClubBot.apiBase)
-      ? ClubBot.apiBase()
-      : 'http://127.0.0.1:8787';
-  },
-  secret() {
-    return (typeof ClubBot !== 'undefined' && ClubBot.secret) ? ClubBot.secret() : '';
-  },
-  role() {
-    try {
-      if (typeof AuthManager !== 'undefined') {
-        if (AuthManager.isCoach && AuthManager.isCoach()) return 'coach';
-        if (AuthManager.role === 'coach') return 'coach';
-      }
-    } catch (_) {}
-    return 'player';
-  },
-  async request(path, opts) {
-    opts = opts || {};
-    const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
-    const sec = this.secret();
-    if (sec) headers['X-Bot-Secret'] = sec;
-    const res = await fetch(this.apiBase() + path, Object.assign({}, opts, { headers }));
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || data.ok === false) {
-      const err = new Error(data.message || data.error || ('HTTP ' + res.status));
-      err.data = data;
-      throw err;
-    }
-    return data;
-  },
-  async status() {
-    return this.request('/api/club/status');
-  },
-  /** Build payload for server: prefer full migration pack for coaches. */
-  buildPayload() {
-    if (typeof StorageManager === 'undefined') throw new Error('StorageManager missing');
-    if (this.role() === 'coach' && StorageManager.migrateRegisteredPlayers) {
-      // Synchronous snapshot without awaiting cloud — use in-memory pack builder
-    }
-    if (StorageManager.buildExportPayload) {
-      const base = StorageManager.buildExportPayload();
-      return Object.assign({}, base, {
-        type: this.role() === 'coach' ? 'metalist_full_migration' : 'metalist_roster_migration',
-        legacyType: 'metalist_roster_migration',
-        club: (base.settings && base.settings.clubName) || 'МЕТАЛІСТ ШТУТГАРТ',
-        updatedAt: new Date().toISOString()
-      });
-    }
-    throw new Error('buildExportPayload missing');
-  },
-  async push(role) {
-    const r = role || this.role();
-    try {
-      const club = this.buildPayload();
-      const data = await this.request('/api/club/upload?role=' + encodeURIComponent(r), {
-        method: 'POST',
-        body: JSON.stringify(club)
-      });
-      const kb = data.meta && data.meta.size ? Math.round(data.meta.size / 1024) : '?';
-      if (typeof Toast !== 'undefined') {
-        Toast.show('Сервер: JSON клубу (' + r + ') збережено · ' + kb + ' КБ', 'ok');
-      }
-      try { TelegramManager.haptic && TelegramManager.haptic('medium'); } catch (_) {}
-      return data;
-    } catch (e) {
-      console.warn('[ClubSync] push', e);
-      if (typeof Toast !== 'undefined') {
-        Toast.show('Сервер недоступний: ' + (e.message || e), 'err');
-      }
-      throw e;
-    }
-  },
-  async pull(role) {
-    // Default: both coach and player pull the coach pack from the companion server
-    const r = role || 'coach';
-    try {
-      const data = await this.request('/api/club/download?role=' + encodeURIComponent(r));
-      const club = data.club;
-      if (!club) throw new Error('empty_club');
-      if (typeof StorageManager === 'undefined' || !StorageManager.importJSON) {
-        throw new Error('importJSON missing');
-      }
-      await StorageManager.importJSON(JSON.stringify(club));
-      if (typeof Toast !== 'undefined') {
-        Toast.show('Імпортовано JSON клубу з сервера (' + r + ')', 'ok');
-      }
-      try { TelegramManager.hapticSuccess && TelegramManager.hapticSuccess(); } catch (_) {}
-      return data;
-    } catch (e) {
-      console.warn('[ClubSync] pull', e);
-      if (typeof Toast !== 'undefined') {
-        Toast.show('Завантаження з сервера: ' + (e.message || e), 'err');
-      }
-      throw e;
-    }
-  }
-};
-if (typeof window !== 'undefined') window.ClubSync = ClubSync;
-
-CoachTools.clubServerPanelHtml = function () {
-  const role = (typeof ClubSync !== 'undefined' && ClubSync.role) ? ClubSync.role() : 'coach';
-  const base = (typeof ClubSync !== 'undefined' && ClubSync.apiBase) ? ClubSync.apiBase() : 'http://127.0.0.1:8787';
-  return (
-    '<div class="card glass club-server-panel" style="margin-top:12px">' +
-      '<div class="card-h">💻 Локальний сервер (JSON клубу)</div>' +
-      '<p class="note-sm" style="opacity:.75;margin:6px 0 10px">Обмін файлом клубу з Windows companion · роль зараз: <strong>' +
-        String(role) +
-      '</strong> · API <code>' + String(base).replace(/</g, '') + '</code></p>' +
-      '<div class="coach-tools-grid" style="display:flex;flex-wrap:wrap;gap:8px">' +
-        '<button type="button" class="btn btn-p" data-club-sync="push">⬆ На сервер</button>' +
-        '<button type="button" class="btn btn-s" data-club-sync="pull">⬇ З сервера</button>' +
-        '<button type="button" class="btn btn-s" data-club-sync="status">Статус файлів</button>' +
-        '<button type="button" class="btn btn-s" data-club-sync="pull-coach">⬇ Файл тренера</button>' +
-        '<button type="button" class="btn btn-s" data-club-sync="pull-player">⬇ Файл гравця</button>' +
-        '<button type="button" class="btn btn-s" data-club-sync="push-player">⬆ Як гравець</button>' +
-      '</div>' +
-      '<p class="note-sm" id="clubSyncStatusLine" style="margin-top:8px"></p>' +
-    '</div>'
-  );
-};
-
-CoachTools.bindClubSync = function (root) {
-  const el = root || document;
-  el.querySelectorAll('[data-club-sync]').forEach((btn) => {
-    if (btn._clubSyncBound) return;
-    btn._clubSyncBound = true;
-    btn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const act = btn.getAttribute('data-club-sync');
-      const line = document.getElementById('clubSyncStatusLine');
-      try {
-        if (act === 'push') return void (await ClubSync.push());
-        if (act === 'push-player') return void (await ClubSync.push('player'));
-        if (act === 'pull') return void (await ClubSync.pull());
-        if (act === 'pull-coach') return void (await ClubSync.pull('coach'));
-        if (act === 'pull-player') return void (await ClubSync.pull('player'));
-        if (act === 'status') {
-          const r = await ClubSync.status();
-          const c = r.roles && r.roles.coach;
-          const p = r.roles && r.roles.player;
-          const fmt = (x) => (x && x.present)
-            ? (Math.round((x.size || 0) / 1024) + ' КБ · ' + (x.updatedAt || ''))
-            : 'немає';
-          const text = 'coach: ' + fmt(c) + ' · player: ' + fmt(p);
-          if (line) line.textContent = text;
-          if (typeof Toast !== 'undefined') Toast.show(text, 'ok');
-        }
-      } catch (err) {
-        if (line) line.textContent = String(err.message || err);
-      }
-    });
-  });
-};
 
 CoachTools.clubBotPanelHtml = function () {
   const chat = (typeof ClubBot !== 'undefined' && ClubBot.chatId()) || '';

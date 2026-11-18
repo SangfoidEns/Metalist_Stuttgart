@@ -53,8 +53,3 @@ node server/index.mjs
 | POST | `/api/bot/match-lineup` |
 | POST | `/api/bot/club-event` |
 | POST | `/api/bot/schedule-check` |
-| GET | `/api/club/status` |
-| POST | `/api/club/upload?role=coach\|player` |
-| GET | `/api/club/download?role=coach\|player` |
-
-Windows companion (control panel + JSON club files): see `windows-server/README.md` (`start.bat`, port **8787**).
