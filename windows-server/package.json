@@ -1,0 +1,14 @@
+{
+  "name": "metalist-stuttgart-windows-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Windows local companion server for MetaList Stuttgart (JSON club file + Telegram bot API)",
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.mjs",
+    "server": "node ../server/index.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

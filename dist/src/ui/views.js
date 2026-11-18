@@ -1631,11 +1631,14 @@ const Views = {
 
       <div class="card glass coach-tools-settings">
         ${typeof CoachTools !== 'undefined' && CoachTools.clubBotPanelHtml ? CoachTools.clubBotPanelHtml() : ''}
+        ${typeof CoachTools !== 'undefined' && CoachTools.clubServerPanelHtml ? CoachTools.clubServerPanelHtml() : ''}
         <div class="ct">${t('telegram_tools')}</div>
         <p class="note-sm">Синхронізація Cloud Storage та шеринг у чат команди.</p>
         <div class="coach-tools-grid" style="display:flex;flex-wrap:wrap;gap:8px">
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="sync-push">☁ ${t('save_cloud')}</button>
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="sync-pull">☁ Завантажити з Cloud</button>
+          <button type="button" class="btn btn-s coach-tool" data-coach-tool="server-push">⬆ На локальний сервер</button>
+          <button type="button" class="btn btn-s coach-tool" data-coach-tool="server-pull">⬇ З локального сервера</button>
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="share-training">📤 План у чат</button>
           <button type="button" class="btn btn-s coach-tool" data-coach-tool="share-roster">👥 ${t('share_roster')}</button>
         </div>

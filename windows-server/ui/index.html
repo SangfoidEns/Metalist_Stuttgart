@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MetaList Stuttgart — Локальний сервер</title>
+  <link rel="stylesheet" href="/ui/styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <p class="brand">METALIST STUTTGART</p>
+      <h1>Локальний сервер / Local server</h1>
+      <p class="lede">Companion для клієнта MetaList: Telegram bot API + обмін JSON-файлом клубу (тренер / гравець).</p>
+    </header>
+
+    <section class="panel" aria-labelledby="status-title">
+      <h2 id="status-title">Статус</h2>
+      <div class="status-grid">
+        <div>
+          <span class="label">Стан</span>
+          <strong id="srvState">перевірка…</strong>
+        </div>
+        <div>
+          <span class="label">URL</span>
+          <code id="srvUrl">http://127.0.0.1:8787</code>
+        </div>
+        <div>
+          <span class="label">Порт / Port</span>
+          <code id="srvPort">8787</code>
+        </div>
+        <div>
+          <span class="label">Папка даних</span>
+          <code id="srvData" class="path">—</code>
+        </div>
+      </div>
+      <p class="hint">Зупинка: закрийте вікно консолі або Ctrl+C у <code>start.bat</code> / <code>start.ps1</code>.</p>
+      <div class="row">
+        <button type="button" class="btn" id="btnRefresh">Оновити статус</button>
+        <button type="button" class="btn ghost" id="btnCopyUrl">Копіювати URL</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="club-title">
+      <h2 id="club-title">JSON-файл клубу (Johnson / club JSON)</h2>
+      <p class="hint">
+        Тренер завантажує повний snapshot (<code>metalist_full_migration</code> або експорт з додатку).
+        Гравець забирає файл з сервера або викладає свій зріз. Ролі збігаються з клієнтом: <strong>coach</strong> / <strong>player</strong>.
+      </p>
+
+      <div class="roles">
+        <article class="role" data-role="coach">
+          <h3>Тренер / Coach</h3>
+          <p class="meta" id="meta-coach">немає файлу</p>
+          <div class="row">
+            <label class="btn">
+              Завантажити на сервер
+              <input type="file" accept=".json,application/json" data-upload="coach" hidden />
+            </label>
+            <button type="button" class="btn ghost" data-download="coach">Скачати</button>
+          </div>
+        </article>
+
+        <article class="role" data-role="player">
+          <h3>Гравець / Player</h3>
+          <p class="meta" id="meta-player">немає файлу</p>
+          <div class="row">
+            <label class="btn">
+              Завантажити на сервер
+              <input type="file" accept=".json,application/json" data-upload="player" hidden />
+            </label>
+            <button type="button" class="btn ghost" data-download="player">Скачати</button>
+          </div>
+        </article>
+      </div>
+      <p id="clubMsg" class="msg" role="status"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="client-title">
+      <h2 id="client-title">Підключення клієнта</h2>
+      <ol class="steps">
+        <li>Запустіть цей сервер (<code>start.bat</code>).</li>
+        <li>У клієнті MetaList встановіть API:
+          <code>localStorage.setItem('ms_auth_api','http://127.0.0.1:8787')</code>
+          або meta <code>ms-auth-api</code> / <code>window.__MS_AUTH_API__</code>.
+        </li>
+        <li>У Налаштуваннях: «На сервер» / «З сервера» для JSON клубу (роль coach або player).</li>
+        <li>Опційно: <code>TELEGRAM_BOT_TOKEN</code> для бота клубу (див. <code>BOT_SETUP.md</code>).</li>
+      </ol>
+    </section>
+
+    <section class="panel muted" aria-labelledby="bot-title">
+      <h2 id="bot-title">Telegram bot</h2>
+      <p class="meta" id="botMeta">перевірка…</p>
+    </section>
+
+    <footer>
+      <p>Default port <strong>8787</strong> · HTTP JSON · CORS open for local Mini App</p>
+    </footer>
+  </div>
+  <script src="/ui/app.js"></script>
+</body>
+</html>

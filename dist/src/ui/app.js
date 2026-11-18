@@ -2863,6 +2863,7 @@ const App = {
     App.renderCurrent = function () {
       const r = _origRender.apply(this, arguments);
       try { if (typeof CoachTools !== 'undefined' && CoachTools.bindClubBot) CoachTools.bindClubBot(document); } catch (_) {}
+      try { if (typeof CoachTools !== 'undefined' && CoachTools.bindClubSync) CoachTools.bindClubSync(document); } catch (_) {}
       try { if (typeof ClubBot !== 'undefined' && ClubBot.autoPollEnabled && ClubBot.autoPollEnabled()) ClubBot.startScheduler(); } catch (_) {}
       return r;
     };
