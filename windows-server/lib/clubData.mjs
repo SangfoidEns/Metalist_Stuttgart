@@ -253,14 +253,27 @@ function readBody(req, limit = 8 * 1024 * 1024) {
   });
 }
 
-function sendJson(res, status, body) {
+function corsOrigin(req) {
+  const configured = String(process.env.CORS_ORIGIN || '').trim();
+  if (configured && configured !== '*') return configured;
+  const origin = String((req && req.headers && req.headers.origin) || '');
+  if (!origin) return 'http://127.0.0.1';
+  try {
+    const host = new URL(origin).hostname;
+    if (isLoopbackHost(host)) return origin;
+  } catch (_) {}
+  return 'null';
+}
+
+function sendJson(res, status, body, req) {
   const json = JSON.stringify(body);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(json),
-    'Access-Control-Allow-Origin': process.env.CORS_ORIGIN || '*',
+    'Access-Control-Allow-Origin': corsOrigin(req),
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Bot-Secret, X-Club-Key',
+    'Vary': 'Origin',
     'Cache-Control': 'no-store'
   });
   res.end(json);
@@ -276,9 +289,10 @@ export async function handleClubRequest(req, res, mayWrite) {
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
-      'Access-Control-Allow-Origin': process.env.CORS_ORIGIN || '*',
+      'Access-Control-Allow-Origin': corsOrigin(req),
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Bot-Secret, X-Club-Key',
+      'Vary': 'Origin',
       'Access-Control-Max-Age': '86400'
     });
     res.end();
@@ -287,7 +301,7 @@ export async function handleClubRequest(req, res, mayWrite) {
 
   if (req.method === 'GET') {
     const club = readClub();
-    sendJson(res, 200, { ok: true, ...club });
+    sendJson(res, 200, { ok: true, ...club }, req);
     return true;
   }
 
@@ -296,28 +310,28 @@ export async function handleClubRequest(req, res, mayWrite) {
     try {
       body = await readBody(req);
     } catch (e) {
-      sendJson(res, e.status || 400, { ok: false, error: e.message || 'bad_request' });
+      sendJson(res, e.status || 400, { ok: false, error: e.message || 'bad_request' }, req);
       return true;
     }
     const allowed = await mayWrite(req, body);
     if (!allowed) {
-      sendJson(res, 403, { ok: false, error: 'coach_only', message: 'Запис лише для тренера' });
+      sendJson(res, 403, { ok: false, error: 'coach_only', message: 'Запис лише для тренера' }, req);
       return true;
     }
     if (!body.payload || typeof body.payload !== 'object') {
-      sendJson(res, 400, { ok: false, error: 'payload_required' });
+      sendJson(res, 400, { ok: false, error: 'payload_required' }, req);
       return true;
     }
     const incomingAt = body.updatedAt || body.payload.updatedAt || new Date().toISOString();
     const current = readClub();
     const mode = classifyClubWrite(req, body, current.payload);
     if (mode === 'deny') {
-      sendJson(res, 403, { ok: false, error: 'guest_readonly', message: 'Гість лише переглядає клуб' });
+      sendJson(res, 403, { ok: false, error: 'guest_readonly', message: 'Гість лише переглядає клуб' }, req);
       return true;
     }
     if (mode === 'chat') {
       if (!current.payload) {
-        sendJson(res, 403, { ok: false, error: 'coach_only', message: 'Запис клубу створює лише тренер' });
+        sendJson(res, 403, { ok: false, error: 'coach_only', message: 'Запис клубу створює лише тренер' }, req);
         return true;
       }
       const payload = Object.assign({}, current.payload, {
@@ -329,11 +343,11 @@ export async function handleClubRequest(req, res, mayWrite) {
         updatedBy: body.updatedBy || 'player',
         payload
       });
-      sendJson(res, 200, { ok: true, updatedAt: saved.updatedAt, updatedBy: saved.updatedBy });
+      sendJson(res, 200, { ok: true, updatedAt: saved.updatedAt, updatedBy: saved.updatedBy }, req);
       return true;
     }
     if (current.updatedAt && Date.parse(incomingAt) < Date.parse(current.updatedAt)) {
-      sendJson(res, 409, { ok: false, error: 'stale', ...current });
+      sendJson(res, 409, { ok: false, error: 'stale', ...current }, req);
       return true;
     }
     const payload = body.payload;
@@ -349,10 +363,10 @@ export async function handleClubRequest(req, res, mayWrite) {
       updatedBy: body.updatedBy || 'coach',
       payload
     });
-    sendJson(res, 200, { ok: true, ...saved, payload: undefined });
+    sendJson(res, 200, { ok: true, ...saved, payload: undefined }, req);
     return true;
   }
 
-  sendJson(res, 405, { ok: false, error: 'method_not_allowed' });
+  sendJson(res, 405, { ok: false, error: 'method_not_allowed' }, req);
   return true;
 }

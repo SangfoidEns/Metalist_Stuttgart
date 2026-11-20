@@ -10,8 +10,33 @@ const { pathToFileURL } = require('url');
 let mainWindow = null;
 let api = null;
 
+function settingsFile() {
+  return path.join(app.getPath('userData'), 'server-settings.json');
+}
+
+function readSettings() {
+  try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); }
+  catch (_) { return {}; }
+}
+
+function writeSettings(patch) {
+  const next = Object.assign(readSettings(), patch || {});
+  fs.mkdirSync(path.dirname(settingsFile()), { recursive: true });
+  fs.writeFileSync(settingsFile(), JSON.stringify(next));
+  return next;
+}
+
+/** Packaged app.asar is read-only. Keep club JSON in the user profile. */
+function ensureWritableData() {
+  const settings = readSettings();
+  const dataFile = settings.dataFile || path.join(app.getPath('userData'), 'club-data.json');
+  process.env.CLUB_DATA_FILE = dataFile;
+  fs.mkdirSync(path.dirname(dataFile), { recursive: true });
+}
+
 async function loadApi() {
   if (api) return api;
+  ensureWritableData();
   // Windows needs file:// URLs for dynamic ESM import (ERR_UNSUPPORTED_ESM_URL_SCHEME)
   api = await import(pathToFileURL(path.join(__dirname, 'server.mjs')).href);
   return api;
@@ -113,6 +138,8 @@ ipcMain.handle('folder:choose', async () => {
   }
   try {
     const paths = mod.setDataDir(result.filePaths[0], { migrate: true });
+    writeSettings({ dataFile: paths.dataFile });
+    process.env.CLUB_DATA_FILE = paths.dataFile;
     return { ok: true, ...paths, status: mod.getStatus() };
   } catch (err) {
     return { ok: false, error: err.message || String(err) };

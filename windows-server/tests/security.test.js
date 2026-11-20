@@ -88,6 +88,10 @@ describe('windows-server security', () => {
     assert.equal(r.status, 200);
     assert.notEqual(r.headers['access-control-allow-origin'], 'https://evil.example');
     assert.notEqual(r.headers['access-control-allow-origin'], '*');
+    const club = await req(18789, 'GET', '/api/club-data', null, { Origin: 'https://evil.example' });
+    assert.equal(club.status, 200);
+    assert.notEqual(club.headers['access-control-allow-origin'], '*');
+    assert.notEqual(club.headers['access-control-allow-origin'], 'https://evil.example');
   });
 
   it('desktop importClubFile stores payload', () => {
