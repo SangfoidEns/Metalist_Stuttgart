@@ -157,6 +157,20 @@ describe('windows-server security', () => {
     }, { id: 77, username: 'artem_serdyuk' });
     assert.equal(merged.players[0].phone, '111');
     assert.equal(merged.players[0].firstName, 'Бо');
+    const stolen = mergeSelfProfile({
+      players: [
+        { id: 'stale', telegramUsername: 'koval', phone: 'old' },
+        { id: 'real', telegramId: '8', phone: 'mine' }
+      ],
+      gifts: []
+    }, {
+      players: [
+        { id: 'stale', phone: 'stolen' },
+        { id: 'real', phone: '111' }
+      ]
+    }, { id: 8, username: 'koval' });
+    assert.equal(stolen.players[0].phone, 'old');
+    assert.equal(stolen.players[1].phone, '111');
   });
 
   it('assistant list is not a full write and a nameless coach id is', () => {

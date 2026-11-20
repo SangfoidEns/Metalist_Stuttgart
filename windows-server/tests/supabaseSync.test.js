@@ -162,12 +162,15 @@ describe('supabase club sync', () => {
     assert.match(sql, /private\.tg_user/);
     assert.match(sql, /grant execute on function public\.club_pull/);
     assert.match(sql, /errcode = 'PT409'/);
-    assert.match(sql, /private\.norm_nick\(player->>'telegramUsername'\)/);
+    assert.match(sql, /private\.norm_nick\(item->>'telegramUsername'\)/);
     assert.match(sql, /nick = 'serdiuk_artem'/);
     assert.match(sql, /actor->>'id' = coach_id/);
     assert.doesNotMatch(sql, /rbac/);
     assert.match(sql, /private\.merge_chat\(row\.payload->'chat', payload->'chat', null\)/);
     assert.match(sql, /private\.merge_self_profile\(next_payload, payload, actor\)/);
-    assert.match(sql, /player->>'linkedTelegramId'/);
+    assert.match(sql, /private\.match_player\(payload->'players', actor\)/);
+    const matcher = sql.slice(sql.indexOf('function private.match_player'), sql.indexOf('function private.merge_chat'));
+    assert.ok(matcher.indexOf("item->>'telegramId'") < matcher.indexOf("item->>'telegramUsername'"));
+    assert.match(sql, /item->>'linkedTelegramId'/);
   });
 });

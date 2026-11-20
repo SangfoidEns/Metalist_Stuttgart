@@ -188,18 +188,28 @@ function isCoachUser(user) {
   return nick === 'serdiuk_artem';
 }
 
-export function playerMatches(player, user) {
-  if (!player || !user) return false;
+/** Id and linked id win over a username, so a stale nick on an earlier row cannot take the write. */
+export function findLinkedPlayer(players, user) {
+  if (!user || user.id == null || user.id === '') return null;
+  const list = Array.isArray(players) ? players : [];
   const id = String(user.id);
-  if (player.telegramId != null && String(player.telegramId) === id) return true;
-  if (player.linkedTelegramId != null && String(player.linkedTelegramId) === id) return true;
+  const byId = list.find((player) => player && (
+    (player.telegramId != null && String(player.telegramId) === id)
+    || (player.linkedTelegramId != null && String(player.linkedTelegramId) === id)
+  ));
+  if (byId) return byId;
   const nick = normNick(user.username);
-  return !!(nick && normNick(player.telegramUsername) === nick);
+  if (!nick) return null;
+  return list.find((player) => player && normNick(player.telegramUsername) === nick) || null;
+}
+
+export function playerMatches(player, user) {
+  return !!findLinkedPlayer(player ? [player] : [], user);
 }
 
 function linkedPlayer(payload, user) {
   const players = payload && Array.isArray(payload.players) ? payload.players : [];
-  return players.some((player) => playerMatches(player, user));
+  return !!findLinkedPlayer(players, user);
 }
 
 function clipText(value, max) {
@@ -220,7 +230,7 @@ export function mergeSelfProfile(currentPayload, incomingPayload, user) {
   if (!currentPayload || !incomingPayload || !user) return currentPayload;
   const players = Array.isArray(currentPayload.players) ? currentPayload.players : [];
   const incomingPlayers = Array.isArray(incomingPayload.players) ? incomingPayload.players : [];
-  const mine = players.find((player) => playerMatches(player, user));
+  const mine = findLinkedPlayer(players, user);
   if (!mine) return currentPayload;
   const incoming = incomingPlayers.find((player) => player && String(player.id) === String(mine.id));
   if (!incoming) return currentPayload;
