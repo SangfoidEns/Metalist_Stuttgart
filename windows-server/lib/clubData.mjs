@@ -180,20 +180,12 @@ export function isLoopbackHost(host) {
   return host === 'localhost' || host === '127.0.0.1' || host === '::1';
 }
 
-function coachNicks(payload) {
-  const list = payload && payload.settings && payload.settings.rbac && payload.settings.rbac.coaches;
-  const raw = Array.isArray(list) ? list.slice() : [];
-  raw.push('Serdiuk_Artem');
-  return [...new Set(raw.map(normNick).filter((nick) => nick && nick !== 'artem_serdyuk' && nick !== 'artem_serdiuk'))];
-}
-
-function isCoachUser(user, payload) {
-  if (!user) return false;
+function isCoachUser(user) {
+  if (!user || user.id == null || user.id === '') return false;
   if (coachTelegramId() && String(user.id) === coachTelegramId()) return true;
   const nick = normNick(user.username);
   if (!nick || nick === 'artem_serdyuk' || nick === 'artem_serdiuk') return false;
-  const coaches = coachNicks(payload);
-  return coaches.includes(nick) || coaches.includes(String(user.id));
+  return nick === 'serdiuk_artem';
 }
 
 export function playerMatches(player, user) {
@@ -291,7 +283,9 @@ export function mergeSelfProfile(currentPayload, incomingPayload, user) {
 
 /**
  * full — coach replaces the club; chat — linked player adds messages and their profile; deny — guest.
- * Coach privilege is COACH_TELEGRAM_ID or a validated username that the Mini App treats as coach.
+ * Full write is the club key, COACH_TELEGRAM_ID, or validated @Serdiuk_Artem.
+ * A numeric coach id matches even when Telegram has no username.
+ * settings.rbac.coaches are assistants and do not get a full write.
  * The write key does not consult initData, so a forged username cannot widen it.
  */
 export function classifyClubWrite(req, body, currentPayload) {
@@ -301,7 +295,7 @@ export function classifyClubWrite(req, body, currentPayload) {
     if (clientIsLoopback(req) && openClubWrites()) return 'full';
     return 'deny';
   }
-  if (isCoachUser(user, currentPayload)) return 'full';
+  if (isCoachUser(user)) return 'full';
   if (linkedPlayer(currentPayload, user)) return 'chat';
   return 'deny';
 }
@@ -313,7 +307,7 @@ export function clubReadAllowed(req) {
   const initData = req && req.headers ? String(req.headers['x-telegram-init-data'] || '') : '';
   const user = verifiedTelegramUser(initData);
   if (!user) return false;
-  if (isCoachUser(user, readClub().payload)) return true;
+  if (isCoachUser(user)) return true;
   return linkedPlayer(readClub().payload, user);
 }
 

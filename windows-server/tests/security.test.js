@@ -159,6 +159,29 @@ describe('windows-server security', () => {
     assert.equal(merged.players[0].firstName, 'Бо');
   });
 
+  it('assistant list is not a full write and a nameless coach id is', () => {
+    process.env.TELEGRAM_BOT_TOKEN = '123456:telegram-bot-token';
+    process.env.CLUB_WRITE_SECRET = 'club-write-secret-16';
+    process.env.COACH_TELEGRAM_ID = '9001';
+    const req = {
+      headers: { host: '10.0.0.2' },
+      socket: { remoteAddress: '10.0.0.2' }
+    };
+    const assistant = buildTestInitData('123456:telegram-bot-token', { id: 42, username: 'helper' });
+    const roster = {
+      settings: { rbac: { coaches: ['helper', '42', '9001'] } },
+      players: [{ id: 'p9', telegramUsername: 'helper' }]
+    };
+    assert.equal(classifyClubWrite(req, { initData: assistant }, roster), 'chat');
+    const nameless = buildTestInitData('123456:telegram-bot-token', { id: 9001 });
+    assert.equal(classifyClubWrite(req, { initData: nameless }, { players: [] }), 'full');
+    const listedOnly = buildTestInitData('123456:telegram-bot-token', { id: 42 });
+    assert.equal(classifyClubWrite(req, { initData: listedOnly }, {
+      settings: { rbac: { coaches: ['42'] } },
+      players: []
+    }), 'deny');
+  });
+
   it('player chat cannot impersonate the coach', () => {
     const actor = { id: 42, first_name: 'Гравець' };
     const merged = mergeChat(
