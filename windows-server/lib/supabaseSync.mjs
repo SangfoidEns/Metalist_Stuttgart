@@ -122,6 +122,19 @@ async function rpc(cfg, name, args) {
   return { status: res.status, json, text };
 }
 
+export function conflictRecord(json) {
+  if (!json || typeof json !== 'object') return null;
+  if (json.payload && typeof json.payload === 'object') return json;
+  const raw = json.details || json.detail;
+  if (!raw) return null;
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return parsed && parsed.payload ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function explain(res) {
   const msg = (res.json && (res.json.message || res.json.error || res.json.hint)) || res.text || ('HTTP ' + res.status);
   if (/unauthorized/i.test(String(msg)) || res.status === 401 || res.status === 403) {
@@ -180,6 +193,22 @@ export async function syncOnce() {
           club_key: cfg.clubKey
         };
         const up = await rpc(cfg, 'club_push', body);
+        if (up.status === 409) {
+          const remote = conflictRecord(up.json);
+          if (remote && remote.payload) {
+            const updatedAt = remote.updatedAt || remote.updated_at;
+            writeClub({
+              updatedAt,
+              updatedBy: remote.updatedBy || remote.updated_by || 'supabase',
+              payload: remote.payload
+            });
+            cloud.direction = 'pull';
+            cloud.remoteUpdatedAt = updatedAt;
+            cloud.lastError = null;
+            cloud.lastSyncAt = new Date().toISOString();
+            return { ok: true, direction: 'pull', status: cloudStatus() };
+          }
+        }
         if (up.status >= 400) {
           cloud.lastError = explain(up);
           cloud.direction = 'error';

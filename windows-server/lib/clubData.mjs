@@ -180,22 +180,34 @@ export function isLoopbackHost(host) {
   return host === 'localhost' || host === '127.0.0.1' || host === '::1';
 }
 
-function linkedPlayer(payload, user) {
-  const players = payload && Array.isArray(payload.players) ? payload.players : [];
-  const id = String(user.id);
-  return players.some((player) => {
-    if (!player) return false;
-    if (player.telegramId != null && String(player.telegramId) === id) return true;
-    if (player.linkedTelegramId != null && String(player.linkedTelegramId) === id) return true;
-    return false;
-  });
+function coachNicks(payload) {
+  const list = payload && payload.settings && payload.settings.rbac && payload.settings.rbac.coaches;
+  const raw = Array.isArray(list) ? list.slice() : [];
+  raw.push('Serdiuk_Artem');
+  return [...new Set(raw.map(normNick).filter((nick) => nick && nick !== 'artem_serdyuk' && nick !== 'artem_serdiuk'))];
 }
 
-function playerMatches(player, user) {
+function isCoachUser(user, payload) {
+  if (!user) return false;
+  if (coachTelegramId() && String(user.id) === coachTelegramId()) return true;
+  const nick = normNick(user.username);
+  if (!nick || nick === 'artem_serdyuk' || nick === 'artem_serdiuk') return false;
+  const coaches = coachNicks(payload);
+  return coaches.includes(nick) || coaches.includes(String(user.id));
+}
+
+export function playerMatches(player, user) {
   if (!player || !user) return false;
-  if (player.telegramId != null && String(player.telegramId) === String(user.id)) return true;
+  const id = String(user.id);
+  if (player.telegramId != null && String(player.telegramId) === id) return true;
+  if (player.linkedTelegramId != null && String(player.linkedTelegramId) === id) return true;
   const nick = normNick(user.username);
   return !!(nick && normNick(player.telegramUsername) === nick);
+}
+
+function linkedPlayer(payload, user) {
+  const players = payload && Array.isArray(payload.players) ? payload.players : [];
+  return players.some((player) => playerMatches(player, user));
 }
 
 function clipText(value, max) {
@@ -279,7 +291,7 @@ export function mergeSelfProfile(currentPayload, incomingPayload, user) {
 
 /**
  * full — coach replaces the club; chat — linked player adds messages and their profile; deny — guest.
- * Coach privilege is the signed Telegram user id (COACH_TELEGRAM_ID) or the club write key.
+ * Coach privilege is COACH_TELEGRAM_ID or a validated username that the Mini App treats as coach.
  * The write key does not consult initData, so a forged username cannot widen it.
  */
 export function classifyClubWrite(req, body, currentPayload) {
@@ -289,7 +301,7 @@ export function classifyClubWrite(req, body, currentPayload) {
     if (clientIsLoopback(req) && openClubWrites()) return 'full';
     return 'deny';
   }
-  if (coachTelegramId() && String(user.id) === coachTelegramId()) return 'full';
+  if (isCoachUser(user, currentPayload)) return 'full';
   if (linkedPlayer(currentPayload, user)) return 'chat';
   return 'deny';
 }
@@ -301,7 +313,7 @@ export function clubReadAllowed(req) {
   const initData = req && req.headers ? String(req.headers['x-telegram-init-data'] || '') : '';
   const user = verifiedTelegramUser(initData);
   if (!user) return false;
-  if (coachTelegramId() && String(user.id) === coachTelegramId()) return true;
+  if (isCoachUser(user, readClub().payload)) return true;
   return linkedPlayer(readClub().payload, user);
 }
 

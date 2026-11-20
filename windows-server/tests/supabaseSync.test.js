@@ -16,6 +16,7 @@ const {
   syncOnce,
   stopCloudSync,
   cloudStatus,
+  conflictRecord,
   DEFAULT_SUPABASE_URL
 } = await import('../lib/supabaseSync.mjs');
 
@@ -110,12 +111,61 @@ describe('supabase club sync', () => {
     assert.equal(cloudStatus().tableMissing, true);
   });
 
+  it('applies a 409 snapshot instead of retrying a stale push', async () => {
+    writeClub({
+      updatedAt: '2026-01-02T00:00:00.000Z',
+      updatedBy: 'windows-app',
+      payload: { players: [{ id: 'local' }], chat: [{ id: 'old' }] }
+    });
+    const remotePayload = { players: [{ id: 'remote' }], chat: [{ id: 'kept' }] };
+    global.fetch = async (url) => {
+      if (String(url).endsWith('/rpc/club_pull')) {
+        return {
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              updated_at: '2024-06-01T12:00:00.000Z',
+              payload: { players: [{ id: 'older' }] }
+            });
+          }
+        };
+      }
+      return {
+        status: 409,
+        async text() {
+          return JSON.stringify({
+            code: 'PT409',
+            message: 'stale',
+            details: JSON.stringify({
+              error: 'stale',
+              updatedAt: '2026-02-01T00:00:00.000Z',
+              updatedBy: 'other',
+              payload: remotePayload
+            })
+          });
+        }
+      };
+    };
+    const res = await syncOnce();
+    assert.equal(res.ok, true);
+    assert.equal(res.direction, 'pull');
+    assert.equal(readClub().payload.players[0].id, 'remote');
+    assert.equal(conflictRecord({ details: JSON.stringify({ payload: { ok: 1 } }) }).payload.ok, 1);
+  });
+
   it('does not grant anon direct access to club_state', () => {
     const sql = fs.readFileSync(new URL('../supabase/club_state.sql', import.meta.url), 'utf8');
     assert.doesNotMatch(sql, /using\s*\(\s*true\s*\)/i);
     assert.doesNotMatch(sql, /with check\s*\(\s*true\s*\)/i);
+    assert.doesNotMatch(sql, /errcode\s*=\s*'40001'/);
     assert.match(sql, /revoke all on table public\.club_state from public, anon, authenticated/i);
     assert.match(sql, /private\.tg_user/);
     assert.match(sql, /grant execute on function public\.club_pull/);
+    assert.match(sql, /errcode = 'PT409'/);
+    assert.match(sql, /private\.norm_nick\(player->>'telegramUsername'\)/);
+    assert.match(sql, /nick = 'serdiuk_artem'/);
+    assert.match(sql, /private\.merge_chat\(row\.payload->'chat', payload->'chat', null\)/);
+    assert.match(sql, /private\.merge_self_profile\(next_payload, payload, actor\)/);
+    assert.match(sql, /player->>'linkedTelegramId'/);
   });
 });

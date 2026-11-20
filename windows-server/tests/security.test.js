@@ -14,7 +14,7 @@ process.env.CORS_ORIGIN = '';
 process.env.HOST = '127.0.0.1';
 
 const { startServer, stopServer, assertSafeListen, importClubFile } = await import('../server.mjs');
-const { classifyClubWrite, clubReadAllowed, mergeChat } = await import('../lib/clubData.mjs');
+const { classifyClubWrite, clubReadAllowed, mergeChat, mergeSelfProfile } = await import('../lib/clubData.mjs');
 const { buildTestInitData } = await import('../lib/validateInitData.mjs');
 
 function req(port, method, urlPath, body, headers = {}) {
@@ -130,6 +130,33 @@ describe('windows-server security', () => {
       headers: { host: '127.0.0.1' },
       socket: { remoteAddress: '127.0.0.1' }
     }), true);
+  });
+
+  it('validated coach nick is full and a linked id can edit their profile', () => {
+    process.env.TELEGRAM_BOT_TOKEN = '123456:telegram-bot-token';
+    process.env.CLUB_WRITE_SECRET = 'club-write-secret-16';
+    process.env.COACH_TELEGRAM_ID = '';
+    const req = {
+      headers: { host: '10.0.0.2' },
+      socket: { remoteAddress: '10.0.0.2' }
+    };
+    const coach = buildTestInitData('123456:telegram-bot-token', { id: 55, username: 'Serdiuk_Artem' });
+    assert.equal(classifyClubWrite(req, { initData: coach }, { players: [] }), 'full');
+    const lookalike = buildTestInitData('123456:telegram-bot-token', { id: 77, username: 'artem_serdyuk' });
+    assert.equal(classifyClubWrite(req, { initData: lookalike }, {
+      settings: { rbac: { coaches: ['artem_serdyuk'] } },
+      players: []
+    }), 'deny');
+    const byName = buildTestInitData('123456:telegram-bot-token', { id: 8, username: 'Koval' });
+    assert.equal(classifyClubWrite(req, { initData: byName }, {
+      players: [{ id: 'p3', telegramUsername: '@koval' }]
+    }), 'chat');
+    const current = { players: [{ id: 'p2', linkedTelegramId: '77', phone: 'old', firstName: 'А' }], gifts: [] };
+    const merged = mergeSelfProfile(current, {
+      players: [{ id: 'p2', phone: '111', firstName: 'Бо' }]
+    }, { id: 77, username: 'artem_serdyuk' });
+    assert.equal(merged.players[0].phone, '111');
+    assert.equal(merged.players[0].firstName, 'Бо');
   });
 
   it('player chat cannot impersonate the coach', () => {
