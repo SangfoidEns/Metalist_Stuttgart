@@ -182,7 +182,7 @@ ipcMain.handle('folder:migrateIn', async () => {
 ipcMain.handle('cloud:saveKey', async (_e, body) => {
   const mod = await loadApi();
   try {
-    const saved = mod.saveSupabaseKey(body && body.anonKey, body && body.url);
+    const saved = mod.saveSupabaseKey(body && body.anonKey, body && body.url, body && body.clubKey);
     const sync = await mod.syncCloudNow();
     return { ok: true, saved, sync, status: mod.getStatus() };
   } catch (err) {

@@ -55,13 +55,15 @@
       <h2>Supabase — автоміграція</h2>
       <p class="meta"><span class="lbl">Сервер</span><code id="cloudUrl">https://zloluzqzswdwaimlqlqx.supabase.co</code></p>
       <p id="cloudMeta" class="meta">ключ ще не збережено</p>
-      <label class="lbl" for="cloudKey">Anon key (один раз)</label>
+      <label class="lbl" for="cloudKey">Anon key (публічний, один раз)</label>
       <input id="cloudKey" type="password" autocomplete="off" placeholder="eyJhbGciOi… з Project Settings → API" />
+      <label class="lbl" for="clubKey">Ключ запису клубу</label>
+      <input id="clubKey" type="password" autocomplete="off" placeholder="той самий, що club_write_key у SQL" />
       <div class="actions">
         <button type="button" class="btn primary" id="btnCloudSave">Зберегти і синхронізувати</button>
         <button type="button" class="btn" id="btnCloudSync">Синхронізувати зараз</button>
       </div>
-      <p class="hint">JSON-файл передавати не потрібно. Додаток сам забирає новіші дані з Supabase і відправляє локальні зміни. Один раз виконай <code>supabase/club_state.sql</code> у SQL Editor.</p>
+      <p class="hint">JSON передавати не потрібно. Спочатку виконай <code>club_state.sql</code> і запиши в ньому bot token та ключ запису. Anon key сам по собі таблицю не відкриває: запис іде лише з ключем тренера.</p>
     </section>
 
     <section class="card">

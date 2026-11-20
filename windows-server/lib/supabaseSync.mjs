@@ -1,7 +1,8 @@
 /**
  * Club JSON sync with the coach Supabase project.
  * One row public.club_state id='metalist' replaces handing a JSON file around.
- * The anon key stays in data/supabase.json (gitignored) or SUPABASE_ANON_KEY.
+ * The anon key only reaches PostgREST. Writes require clubWriteKey (Windows)
+ * or Telegram initData checked inside club_pull / club_push.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -30,26 +31,34 @@ function configPath() {
 
 export function loadCloudConfig() {
   const fromEnvUrl = String(process.env.SUPABASE_URL || '').trim();
-  const fromEnvKey = String(process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  const fromEnvKey = String(process.env.SUPABASE_ANON_KEY || '').trim();
+  const fromEnvClub = String(process.env.CLUB_WRITE_SECRET || '').trim();
   let file = {};
   try {
     file = JSON.parse(fs.readFileSync(configPath(), 'utf8'));
   } catch (_) {}
   const url = String(file.url || fromEnvUrl || DEFAULT_SUPABASE_URL).replace(/\/+$/, '');
   const anonKey = String(file.anonKey || fromEnvKey || '').trim();
+  const clubKey = String(file.clubKey || fromEnvClub || '').trim();
   cloud.url = url;
-  cloud.configured = anonKey.length >= 20;
-  return { url, anonKey, path: configPath(), configured: cloud.configured };
+  cloud.configured = anonKey.length >= 20 && clubKey.length >= 16;
+  return { url, anonKey, clubKey, path: configPath(), configured: cloud.configured };
 }
 
-export function saveCloudConfig({ url, anonKey }) {
+export function saveCloudConfig({ url, anonKey, clubKey }) {
   const next = {
     url: String(url || DEFAULT_SUPABASE_URL).replace(/\/+$/, ''),
-    anonKey: String(anonKey || '').trim()
+    anonKey: String(anonKey || '').trim(),
+    clubKey: String(clubKey || '').trim()
   };
   if (next.anonKey.length < 20) {
     const err = new Error('Потрібен anon key з Supabase → Project Settings → API (довгий ключ, не URL).');
     err.code = 'supabase_key_required';
+    throw err;
+  }
+  if (next.clubKey.length < 16) {
+    const err = new Error('Потрібен ключ запису клубу (той самий, що в private.club_gate.club_write_key).');
+    err.code = 'club_key_required';
     throw err;
   }
   const file = configPath();
@@ -96,19 +105,16 @@ function slimPayload(payload) {
   return copy;
 }
 
-async function rest(cfg, method, query, body) {
-  const url = cfg.url + '/rest/v1/club_state' + (query || '');
-  const headers = {
-    apikey: cfg.anonKey,
-    Authorization: 'Bearer ' + cfg.anonKey,
-    'Content-Type': 'application/json',
-    Accept: 'application/json'
-  };
-  if (method === 'POST') headers.Prefer = 'resolution=merge-duplicates,return=representation';
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: body == null ? undefined : JSON.stringify(body)
+async function rpc(cfg, name, args) {
+  const res = await fetch(cfg.url + '/rest/v1/rpc/' + name, {
+    method: 'POST',
+    headers: {
+      apikey: cfg.anonKey,
+      Authorization: 'Bearer ' + cfg.anonKey,
+      'Content-Type': 'application/json',
+      Accept: 'application/json'
+    },
+    body: JSON.stringify(args || {})
   });
   const text = await res.text();
   let json = null;
@@ -118,11 +124,13 @@ async function rest(cfg, method, query, body) {
 
 function explain(res) {
   const msg = (res.json && (res.json.message || res.json.error || res.json.hint)) || res.text || ('HTTP ' + res.status);
-  if (res.status === 401 || res.status === 403) return 'Supabase відхилив ключ (' + res.status + '). Перевір anon key.';
+  if (/unauthorized/i.test(String(msg)) || res.status === 401 || res.status === 403) {
+    return 'Supabase відхилив доступ. Перевір ключ запису клубу і що в SQL задано private.club_gate.';
+  }
   const code = res.json && res.json.code;
-  if (code === 'PGRST205' || /club_state/.test(String(msg)) && /schema cache|does not exist|not find/i.test(String(msg))) {
+  if (code === 'PGRST202' || code === 'PGRST205' || /club_pull|club_state/.test(String(msg)) && /schema cache|does not exist|not find/i.test(String(msg))) {
     cloud.tableMissing = true;
-    return 'Таблиці club_state ще немає. У Supabase → SQL Editor виконай файл supabase/club_state.sql';
+    return 'Ще не виконано supabase/club_state.sql у SQL Editor.';
   }
   return String(msg).slice(0, 280);
 }
@@ -138,23 +146,23 @@ export async function syncOnce() {
       return { ok: false, skipped: true, reason: 'no_key', status: cloudStatus() };
     }
     try {
-      const remoteRes = await rest(cfg, 'GET', '?id=eq.' + encodeURIComponent(CLUB_ROW_ID) + '&select=id,updated_at,updated_by,payload');
-      if (remoteRes.status === 401 || remoteRes.status === 403 || remoteRes.status >= 400) {
+      const remoteRes = await rpc(cfg, 'club_pull', { init_data: null, club_key: cfg.clubKey });
+      if (remoteRes.status >= 400) {
         cloud.lastError = explain(remoteRes);
         cloud.direction = 'error';
         return { ok: false, error: cloud.lastError, status: cloudStatus() };
       }
       cloud.tableMissing = false;
-      const row = Array.isArray(remoteRes.json) ? remoteRes.json[0] : null;
+      const row = remoteRes.json && remoteRes.json.empty ? null : remoteRes.json;
       const local = readClub();
       const localAt = stamp(local.updatedAt);
-      const remoteAt = row ? stamp(row.updated_at) : 0;
-      cloud.remoteUpdatedAt = row ? row.updated_at : null;
+      const remoteAt = row ? stamp(row.updated_at || row.updatedAt) : 0;
+      cloud.remoteUpdatedAt = row ? (row.updated_at || row.updatedAt) : null;
 
       if (row && row.payload && remoteAt > localAt) {
         writeClub({
-          updatedAt: row.updated_at,
-          updatedBy: row.updated_by || 'supabase',
+          updatedAt: row.updated_at || row.updatedAt,
+          updatedBy: row.updated_by || row.updatedBy || 'supabase',
           payload: row.payload
         });
         cloud.direction = 'pull';
@@ -165,12 +173,13 @@ export async function syncOnce() {
 
       if (local.payload && localAt > remoteAt) {
         const body = {
-          id: CLUB_ROW_ID,
+          payload: slimPayload(local.payload),
           updated_at: local.updatedAt || new Date().toISOString(),
           updated_by: local.updatedBy || 'windows-app',
-          payload: slimPayload(local.payload)
+          init_data: null,
+          club_key: cfg.clubKey
         };
-        const up = await rest(cfg, 'POST', '?on_conflict=id', body);
+        const up = await rpc(cfg, 'club_push', body);
         if (up.status >= 400) {
           cloud.lastError = explain(up);
           cloud.direction = 'error';

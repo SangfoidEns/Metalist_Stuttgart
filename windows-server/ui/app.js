@@ -135,16 +135,19 @@
 
   $('btnCloudSave').addEventListener('click', async () => {
     const anonKey = $('cloudKey').value.trim();
-    if (!anonKey) {
-      msg('Встав anon key з Supabase → Project Settings → API', 'err');
+    const clubKey = $('clubKey').value.trim();
+    if (!anonKey || clubKey.length < 16) {
+      msg('Потрібні anon key і ключ запису клубу (щонайменше 16 символів)', 'err');
       return;
     }
     msg('Підключення до Supabase…');
     const res = await api.saveCloudKey({
       anonKey,
+      clubKey,
       url: ($('cloudUrl').textContent || '').trim()
     });
     $('cloudKey').value = '';
+    $('clubKey').value = '';
     if (res.status) paint(res.status);
     if (!res.ok) {
       msg(res.error || 'не вдалося зберегти ключ', 'err');

@@ -20,6 +20,7 @@ const {
 } = await import('../lib/supabaseSync.mjs');
 
 const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test-anon-key-value';
+const CLUB = 'coach-write-secret-16';
 
 after(() => {
   stopCloudSync();
@@ -33,7 +34,7 @@ describe('supabase club sync', () => {
   });
 
   it('pulls a newer remote snapshot into the local club file', async () => {
-    saveCloudConfig({ url: DEFAULT_SUPABASE_URL, anonKey: KEY });
+    saveCloudConfig({ url: DEFAULT_SUPABASE_URL, anonKey: KEY, clubKey: CLUB });
     writeClub({
       updatedAt: '2020-01-01T00:00:00.000Z',
       updatedBy: 'local',
@@ -41,17 +42,19 @@ describe('supabase club sync', () => {
     });
     const remotePayload = { players: [{ id: 'new' }], schemaVersion: 2, type: 'metalist_full_migration' };
     global.fetch = async (url, opts) => {
-      assert.match(String(url), /zloluzqzswdwaimlqlqx\.supabase\.co\/rest\/v1\/club_state/);
+      assert.match(String(url), /\/rest\/v1\/rpc\/club_pull$/);
       assert.equal(opts.headers.apikey, KEY);
+      const body = JSON.parse(opts.body);
+      assert.equal(body.club_key, CLUB);
+      assert.equal(body.init_data, null);
       return {
         status: 200,
         async text() {
-          return JSON.stringify([{
-            id: 'metalist',
+          return JSON.stringify({
             updated_at: '2024-06-01T12:00:00.000Z',
             updated_by: 'other-pc',
             payload: remotePayload
-          }]);
+          });
         }
       };
     };
@@ -71,25 +74,26 @@ describe('supabase club sync', () => {
     });
     let posted = null;
     global.fetch = async (url, opts) => {
-      if (!opts || opts.method === 'GET' || !opts.method) {
+      const body = JSON.parse(opts.body);
+      if (String(url).endsWith('/rpc/club_pull')) {
         return {
           status: 200,
           async text() {
-            return JSON.stringify([{
-              id: 'metalist',
+            return JSON.stringify({
               updated_at: '2024-06-01T12:00:00.000Z',
               updated_by: 'other-pc',
               payload: { players: [{ id: 'new' }] }
-            }]);
+            });
           }
         };
       }
-      posted = JSON.parse(opts.body);
-      return { status: 201, async text() { return JSON.stringify([posted]); } };
+      assert.match(String(url), /\/rpc\/club_push$/);
+      posted = body;
+      return { status: 200, async text() { return JSON.stringify({ ok: true, updated_at: body.updated_at }); } };
     };
     const res = await syncOnce();
     assert.equal(res.direction, 'push');
-    assert.equal(posted.id, 'metalist');
+    assert.equal(posted.club_key, CLUB);
     assert.equal(posted.payload.players[0].id, 'local');
   });
 
@@ -97,12 +101,21 @@ describe('supabase club sync', () => {
     global.fetch = async () => ({
       status: 404,
       async text() {
-        return JSON.stringify({ code: 'PGRST205', message: "Could not find the table 'public.club_state' in the schema cache" });
+        return JSON.stringify({ code: 'PGRST202', message: 'Could not find the function public.club_pull in the schema cache' });
       }
     });
     const res = await syncOnce();
     assert.equal(res.ok, false);
     assert.match(res.error, /club_state\.sql/);
     assert.equal(cloudStatus().tableMissing, true);
+  });
+
+  it('does not grant anon direct access to club_state', () => {
+    const sql = fs.readFileSync(new URL('../supabase/club_state.sql', import.meta.url), 'utf8');
+    assert.doesNotMatch(sql, /using\s*\(\s*true\s*\)/i);
+    assert.doesNotMatch(sql, /with check\s*\(\s*true\s*\)/i);
+    assert.match(sql, /revoke all on table public\.club_state from public, anon, authenticated/i);
+    assert.match(sql, /private\.tg_user/);
+    assert.match(sql, /grant execute on function public\.club_pull/);
   });
 });

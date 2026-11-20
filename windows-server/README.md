@@ -59,7 +59,7 @@ Then reload. Club sync uses `GET/POST /api/club-data` (coach full write, player 
 
 Stored file: `windows-server/data/club-data.json`.
 
-The same snapshot syncs with Supabase `https://zloluzqzswdwaimlqlqx.supabase.co` (table `club_state`, row `metalist`) once you paste the anon key in the window and run `supabase/club_state.sql` in the SQL editor. Newer side wins, so a JSON file does not need to be copied between PCs.
+The same snapshot syncs with Supabase `https://zloluzqzswdwaimlqlqx.supabase.co` through `club_pull` / `club_push`. Run `supabase/club_state.sql`, then set `private.club_gate` (bot token and club write key) in the SQL editor. The Windows app stores the anon key and that write key locally. The anon key cannot read or update `club_state` by itself. Newer side wins, so a JSON file does not need to be copied between PCs.
 
 ## Security defaults
 

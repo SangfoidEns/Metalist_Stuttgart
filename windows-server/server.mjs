@@ -372,8 +372,8 @@ export function getStatus() {
   };
 }
 
-export function saveSupabaseKey(anonKey, url) {
-  const saved = saveCloudConfig({ url, anonKey });
+export function saveSupabaseKey(anonKey, url, clubKey) {
+  const saved = saveCloudConfig({ url, anonKey, clubKey });
   scheduleCloudPush();
   return saved;
 }
