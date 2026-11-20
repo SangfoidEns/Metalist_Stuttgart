@@ -14,6 +14,8 @@ process.env.CORS_ORIGIN = '';
 process.env.HOST = '127.0.0.1';
 
 const { startServer, stopServer, assertSafeListen, importClubFile } = await import('../server.mjs');
+const { classifyClubWrite, clubReadAllowed, mergeChat } = await import('../lib/clubData.mjs');
+const { buildTestInitData } = await import('../lib/validateInitData.mjs');
 
 function req(port, method, urlPath, body, headers = {}) {
   return new Promise((resolve, reject) => {
@@ -51,6 +53,7 @@ describe('windows-server security', () => {
     await stopServer();
     process.env.CLUB_WRITE_SECRET = '';
     process.env.TELEGRAM_BOT_TOKEN = '';
+    process.env.COACH_TELEGRAM_ID = '';
     process.env.BOT_API_SECRET = '';
     process.env.CORS_ORIGIN = '';
   });
@@ -92,6 +95,58 @@ describe('windows-server security', () => {
     assert.equal(club.status, 200);
     assert.notEqual(club.headers['access-control-allow-origin'], '*');
     assert.notEqual(club.headers['access-control-allow-origin'], 'https://evil.example');
+  });
+
+  it('forged coach username does not grant a full write', () => {
+    process.env.TELEGRAM_BOT_TOKEN = '123456:telegram-bot-token';
+    process.env.CLUB_WRITE_SECRET = 'club-write-secret-16';
+    process.env.COACH_TELEGRAM_ID = '9001';
+    const forged = 'user=' + encodeURIComponent(JSON.stringify({ id: 1, username: 'serdiuk_artem' })) + '&auth_date=1&hash=' + 'ab'.repeat(32);
+    const req = {
+      headers: { host: '192.168.1.20', 'x-club-key': 'wrong' },
+      socket: { remoteAddress: '192.168.1.20' }
+    };
+    assert.equal(classifyClubWrite(req, { initData: forged }, { players: [] }), 'deny');
+    const signed = buildTestInitData('123456:telegram-bot-token', { id: 9001, username: 'someone_else' });
+    assert.equal(classifyClubWrite(req, { initData: signed }, { players: [] }), 'full');
+    const keyReq = {
+      headers: { host: '192.168.1.20', 'x-club-key': 'club-write-secret-16' },
+      socket: { remoteAddress: '192.168.1.20' }
+    };
+    assert.equal(classifyClubWrite(keyReq, { initData: forged }, { players: [] }), 'full');
+  });
+
+  it('LAN club read requires a key or validated initData', () => {
+    process.env.TELEGRAM_BOT_TOKEN = '123456:telegram-bot-token';
+    process.env.CLUB_WRITE_SECRET = 'club-write-secret-16';
+    process.env.COACH_TELEGRAM_ID = '9001';
+    const remote = { headers: { host: '10.0.0.5' }, socket: { remoteAddress: '10.0.0.8' } };
+    assert.equal(clubReadAllowed(remote), false);
+    assert.equal(clubReadAllowed({
+      headers: { host: '10.0.0.5', 'x-club-key': 'club-write-secret-16' },
+      socket: { remoteAddress: '10.0.0.8' }
+    }), true);
+    assert.equal(clubReadAllowed({
+      headers: { host: '127.0.0.1' },
+      socket: { remoteAddress: '127.0.0.1' }
+    }), true);
+  });
+
+  it('player chat cannot impersonate the coach', () => {
+    const actor = { id: 42, first_name: 'Гравець' };
+    const merged = mergeChat(
+      [{ id: 'c1', text: 'план', authorRole: 'coach', authorName: 'Тренер', telegramId: '9001', createdAt: '1' }],
+      [{ id: 'c1', text: 'підміна', authorRole: 'coach', authorName: 'Тренер', createdAt: '2' },
+        { id: 'p1', text: 'я тут', authorRole: 'coach', authorName: 'Тренер', createdAt: '3' }],
+      actor
+    );
+    const coach = merged.find((m) => m.id === 'c1');
+    const own = merged.find((m) => m.id === 'p1');
+    assert.equal(coach.text, 'план');
+    assert.equal(coach.authorRole, 'coach');
+    assert.equal(own.authorRole, 'player');
+    assert.equal(own.authorName, 'Гравець');
+    assert.equal(own.telegramId, '42');
   });
 
   it('desktop importClubFile stores payload', () => {

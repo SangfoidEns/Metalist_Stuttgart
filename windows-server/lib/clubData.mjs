@@ -46,13 +46,27 @@ function emptyClub() {
   return { updatedAt: null, updatedBy: null, payload: null };
 }
 
-/** Union of team-chat messages. Later copy of the same id wins. */
-export function mergeChat(current, incoming) {
+function messageId(message) {
+  return String(message && message.id || '').slice(0, 80);
+}
+
+function ownedByActor(message, actor) {
+  if (!message || !actor || actor.id == null) return false;
+  const id = String(actor.id);
+  return String(message.telegramId || '') === id || String(message.playerId || '') === id;
+}
+
+/**
+ * Union of team-chat messages. Later copy of the same id wins.
+ * When actor is set (player chat write), new rows are stamped from that
+ * validated Telegram user and cannot replace someone else's message.
+ */
+export function mergeChat(current, incoming, actor) {
   const map = new Map();
-  const add = (list) => {
+  const addTrusted = (list) => {
     (Array.isArray(list) ? list : []).forEach((m) => {
       if (!m || typeof m !== 'object') return;
-      const id = String(m.id || '').slice(0, 80);
+      const id = messageId(m);
       if (!id) return;
       const text = String(m.text || '').trim().slice(0, 500);
       if (!text) return;
@@ -63,12 +77,35 @@ export function mergeChat(current, incoming) {
         authorName: String(m.authorName || 'Учасник').slice(0, 80),
         authorRole: role,
         playerId: m.playerId ? String(m.playerId).slice(0, 80) : null,
+        telegramId: m.telegramId != null ? String(m.telegramId).slice(0, 40) : null,
         createdAt: String(m.createdAt || '')
       });
     });
   };
-  add(current);
-  add(incoming);
+  addTrusted(current);
+  (Array.isArray(incoming) ? incoming : []).forEach((m) => {
+    if (!m || typeof m !== 'object') return;
+    const id = messageId(m);
+    if (!id) return;
+    const text = String(m.text || '').trim().slice(0, 500);
+    if (!text) return;
+    if (!actor) {
+      addTrusted([m]);
+      return;
+    }
+    const existing = map.get(id);
+    if (existing && !ownedByActor(existing, actor)) return;
+    const name = String(actor.first_name || actor.username || 'Гравець').slice(0, 80);
+    map.set(id, {
+      id,
+      text,
+      authorName: name,
+      authorRole: 'player',
+      playerId: String(actor.id).slice(0, 40),
+      telegramId: String(actor.id).slice(0, 40),
+      createdAt: String(m.createdAt || '')
+    });
+  });
   return [...map.values()]
     .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
     .slice(-300);
@@ -84,17 +121,37 @@ export function openClubWrites() {
  * З токеном бота приймається лише підписаний Telegram initData.
  */
 export function clubWriteAllowed(req, body) {
+  if (clubKeyMatches(req)) return true;
+  const token = process.env.TELEGRAM_BOT_TOKEN || '';
+  if (token) return !!verifiedTelegramUser(body && body.initData);
+  return openClubWrites();
+}
+
+function clubKeyMatches(req) {
   const secret = process.env.CLUB_WRITE_SECRET || '';
   const header = req && req.headers ? String(req.headers['x-club-key'] || '') : '';
-  if (secret && header === secret) return true;
+  return !!(secret && header && header === secret);
+}
+
+export function coachTelegramId() {
+  return String(process.env.COACH_TELEGRAM_ID || '').trim();
+}
+
+/** User object only after HMAC. Unsigned initData never grants a role. */
+export function verifiedTelegramUser(initData) {
   const token = process.env.TELEGRAM_BOT_TOKEN || '';
-  if (token) {
-    if (!body || !body.initData) return false;
-    const maxAgeSec = Number(process.env.INITDATA_MAX_AGE_SEC || 86400);
-    const result = validateInitData(body.initData, token, { maxAgeSec });
-    return !!result.ok;
-  }
-  return openClubWrites();
+  if (!token || !initData) return null;
+  const maxAgeSec = Number(process.env.INITDATA_MAX_AGE_SEC || 86400);
+  const result = validateInitData(String(initData), token, { maxAgeSec });
+  if (!result.ok || !result.user || result.user.id == null || result.user.id === '') return null;
+  return result.user;
+}
+
+export function clientIsLoopback(req) {
+  const remote = req && req.socket ? String(req.socket.remoteAddress || '') : '';
+  const normalized = remote.replace(/^::ffff:/, '');
+  if (normalized) return isLoopbackHost(normalized);
+  return isLoopbackHost(requestHost(req));
 }
 
 export function normNick(value) {
@@ -126,10 +183,11 @@ export function isLoopbackHost(host) {
 function linkedPlayer(payload, user) {
   const players = payload && Array.isArray(payload.players) ? payload.players : [];
   const id = String(user.id);
-  const nick = normNick(user.username);
   return players.some((player) => {
-    if (player && player.telegramId != null && String(player.telegramId) === id) return true;
-    return !!(nick && normNick(player && player.telegramUsername) === nick);
+    if (!player) return false;
+    if (player.telegramId != null && String(player.telegramId) === id) return true;
+    if (player.linkedTelegramId != null && String(player.linkedTelegramId) === id) return true;
+    return false;
   });
 }
 
@@ -219,15 +277,32 @@ export function mergeSelfProfile(currentPayload, incomingPayload, user) {
   return currentPayload;
 }
 
-/** full — тренер замінює клуб; chat — гравець додає повідомлення і свою анкету; deny — гість. */
+/**
+ * full — coach replaces the club; chat — linked player adds messages and their profile; deny — guest.
+ * Coach privilege is the signed Telegram user id (COACH_TELEGRAM_ID) or the club write key.
+ * The write key does not consult initData, so a forged username cannot widen it.
+ */
 export function classifyClubWrite(req, body, currentPayload) {
-  const user = telegramUserFromInitData(body && body.initData);
-  const nick = normNick(user && user.username);
-  if (nick === 'artem_serdyuk') return 'chat';
-  if (nick === 'serdiuk_artem') return 'full';
-  if (!user && isLoopbackHost(requestHost(req))) return 'full';
-  if (user && linkedPlayer(currentPayload, user)) return 'chat';
+  if (clubKeyMatches(req)) return 'full';
+  const user = verifiedTelegramUser(body && body.initData);
+  if (!user) {
+    if (clientIsLoopback(req) && openClubWrites()) return 'full';
+    return 'deny';
+  }
+  if (coachTelegramId() && String(user.id) === coachTelegramId()) return 'full';
+  if (linkedPlayer(currentPayload, user)) return 'chat';
   return 'deny';
+}
+
+/** Loopback reads stay open for the local app. LAN reads need the write key or a validated Telegram user. */
+export function clubReadAllowed(req) {
+  if (clientIsLoopback(req)) return true;
+  if (clubKeyMatches(req)) return true;
+  const initData = req && req.headers ? String(req.headers['x-telegram-init-data'] || '') : '';
+  const user = verifiedTelegramUser(initData);
+  if (!user) return false;
+  if (coachTelegramId() && String(user.id) === coachTelegramId()) return true;
+  return linkedPlayer(readClub().payload, user);
 }
 
 function readBody(req, limit = 8 * 1024 * 1024) {
@@ -300,6 +375,10 @@ export async function handleClubRequest(req, res, mayWrite) {
   }
 
   if (req.method === 'GET') {
+    if (!clubReadAllowed(req)) {
+      sendJson(res, 401, { ok: false, error: 'unauthorized', message: 'Потрібен ключ клубу або Telegram initData' }, req);
+      return true;
+    }
     const club = readClub();
     sendJson(res, 200, { ok: true, ...club }, req);
     return true;
@@ -325,19 +404,20 @@ export async function handleClubRequest(req, res, mayWrite) {
     const incomingAt = body.updatedAt || body.payload.updatedAt || new Date().toISOString();
     const current = readClub();
     const mode = classifyClubWrite(req, body, current.payload);
+    const actor = verifiedTelegramUser(body && body.initData);
     if (mode === 'deny') {
       sendJson(res, 403, { ok: false, error: 'guest_readonly', message: 'Гість лише переглядає клуб' }, req);
       return true;
     }
     if (mode === 'chat') {
-      if (!current.payload) {
+      if (!current.payload || !actor) {
         sendJson(res, 403, { ok: false, error: 'coach_only', message: 'Запис клубу створює лише тренер' }, req);
         return true;
       }
       const payload = Object.assign({}, current.payload, {
-        chat: mergeChat(current.payload.chat, body.payload.chat)
+        chat: mergeChat(current.payload.chat, body.payload.chat, actor)
       });
-      mergeSelfProfile(payload, body.payload, telegramUserFromInitData(body && body.initData));
+      mergeSelfProfile(payload, body.payload, actor);
       const saved = writeClub({
         updatedAt: new Date().toISOString(),
         updatedBy: body.updatedBy || 'player',
