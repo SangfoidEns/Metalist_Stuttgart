@@ -19,10 +19,10 @@ async function loadApi() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 720,
-    height: 640,
+    width: 760,
+    height: 860,
     minWidth: 560,
-    minHeight: 520,
+    minHeight: 640,
     title: 'STGmetal — Локальний сервер',
     backgroundColor: '#f6f3ee',
     webPreferences: {
@@ -150,6 +150,23 @@ ipcMain.handle('folder:migrateIn', async () => {
   } catch (err) {
     return { ok: false, error: err.message || String(err) };
   }
+});
+
+ipcMain.handle('cloud:saveKey', async (_e, body) => {
+  const mod = await loadApi();
+  try {
+    const saved = mod.saveSupabaseKey(body && body.anonKey, body && body.url);
+    const sync = await mod.syncCloudNow();
+    return { ok: true, saved, sync, status: mod.getStatus() };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err), status: (await loadApi()).getStatus() };
+  }
+});
+
+ipcMain.handle('cloud:sync', async () => {
+  const mod = await loadApi();
+  const sync = await mod.syncCloudNow();
+  return { ok: !!sync.ok || sync.direction === 'idle', sync, status: mod.getStatus() };
 });
 
 ipcMain.handle('folder:migrateOut', async () => {

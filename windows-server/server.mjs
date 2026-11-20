@@ -21,6 +21,7 @@ import {
   writeClub,
   isLoopbackHost
 } from './lib/clubData.mjs';
+import { cloudStatus, scheduleCloudPush, startCloudSync, syncOnce, saveCloudConfig } from './lib/supabaseSync.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -177,6 +178,7 @@ function createHandler() {
 
       if (url.pathname === '/api/club-data') {
         const handled = await handleClubRequest(req, res, mayWriteClub);
+        if (handled && req.method === 'POST') scheduleCloudPush();
         if (handled) return;
       }
 
@@ -365,8 +367,19 @@ export function getStatus() {
       playerCount: club.payload && Array.isArray(club.payload.players) ? club.payload.players.length : 0
     },
     dataFile,
-    dataDir: path.dirname(dataFile)
+    dataDir: path.dirname(dataFile),
+    cloud: cloudStatus()
   };
+}
+
+export function saveSupabaseKey(anonKey, url) {
+  const saved = saveCloudConfig({ url, anonKey });
+  scheduleCloudPush();
+  return saved;
+}
+
+export async function syncCloudNow() {
+  return syncOnce();
 }
 
 export function importClubFile(raw) {
@@ -385,7 +398,9 @@ export function importClubFile(raw) {
   } else {
     throw new Error('unrecognized_club_json');
   }
-  return writeClub({ updatedAt, updatedBy, payload });
+  const saved = writeClub({ updatedAt, updatedBy, payload });
+  scheduleCloudPush();
+  return saved;
 }
 
 export function exportClubFile() {
@@ -447,6 +462,7 @@ export function startServer(opts = {}) {
       state.url = `http://127.0.0.1:${port}`;
       state.startedAt = new Date().toISOString();
       state.lastError = null;
+      startCloudSync();
       console.info(
         `[stgmetal-windows] ${state.url} bind=${host} lan=${lan} club=${process.env.CLUB_DATA_FILE}`
       );

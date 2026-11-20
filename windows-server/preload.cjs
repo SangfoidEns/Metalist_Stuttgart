@@ -9,5 +9,7 @@ contextBridge.exposeInMainWorld('desktop', {
   chooseFolder: () => ipcRenderer.invoke('folder:choose'),
   openFolder: () => ipcRenderer.invoke('folder:open'),
   migrateIn: () => ipcRenderer.invoke('folder:migrateIn'),
-  migrateOut: () => ipcRenderer.invoke('folder:migrateOut')
+  migrateOut: () => ipcRenderer.invoke('folder:migrateOut'),
+  saveCloudKey: (body) => ipcRenderer.invoke('cloud:saveKey', body),
+  syncCloud: () => ipcRenderer.invoke('cloud:sync')
 });

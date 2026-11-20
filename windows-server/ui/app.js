@@ -23,6 +23,23 @@
     $('dataDirText').textContent = (status && status.dataDir) || '—';
     $('dataFileText').textContent = (status && status.dataFile) || '—';
 
+    const cloud = status && status.cloud;
+    if ($('cloudUrl') && cloud && cloud.url) $('cloudUrl').textContent = cloud.url;
+    if ($('cloudMeta')) {
+      if (!cloud || !cloud.configured) {
+        $('cloudMeta').textContent = 'ключ ще не збережено — встав anon key один раз';
+      } else if (cloud.lastError) {
+        $('cloudMeta').textContent = cloud.lastError;
+      } else {
+        const dir = cloud.direction === 'pull' ? 'отримано з сервера'
+          : cloud.direction === 'push' ? 'надіслано на сервер'
+          : 'синхронно';
+        const when = cloud.lastSyncAt ? String(cloud.lastSyncAt).slice(0, 19).replace('T', ' ') : 'очікування';
+        $('cloudMeta').textContent = dir + ' · ' + when
+          + (cloud.remoteUpdatedAt ? ' · на сервері ' + String(cloud.remoteUpdatedAt).slice(0, 19).replace('T', ' ') : '');
+      }
+    }
+
     const club = status && status.club;
     if (!club || !club.hasPayload) {
       $('clubMeta').textContent = 'файлу ще немає — імпортуйте або мігруйте JSON тренера';
@@ -114,6 +131,48 @@
       return;
     }
     msg('Збережено: ' + res.path, 'ok');
+  });
+
+  $('btnCloudSave').addEventListener('click', async () => {
+    const anonKey = $('cloudKey').value.trim();
+    if (!anonKey) {
+      msg('Встав anon key з Supabase → Project Settings → API', 'err');
+      return;
+    }
+    msg('Підключення до Supabase…');
+    const res = await api.saveCloudKey({
+      anonKey,
+      url: ($('cloudUrl').textContent || '').trim()
+    });
+    $('cloudKey').value = '';
+    if (res.status) paint(res.status);
+    if (!res.ok) {
+      msg(res.error || 'не вдалося зберегти ключ', 'err');
+      return;
+    }
+    const dir = res.sync && res.sync.direction;
+    if (res.sync && res.sync.error) msg(res.sync.error, 'err');
+    else if (dir === 'pull') msg('Дані клубу завантажено з Supabase', 'ok');
+    else if (dir === 'push') msg('Локальні дані надіслано в Supabase', 'ok');
+    else msg('Supabase підключено', 'ok');
+  });
+
+  $('btnCloudSync').addEventListener('click', async () => {
+    msg('Синхронізація…');
+    const res = await api.syncCloud();
+    if (res.status) paint(res.status);
+    if (res.sync && res.sync.skipped) {
+      msg('Спочатку збережи anon key', 'err');
+      return;
+    }
+    if (res.sync && !res.sync.ok) {
+      msg(res.sync.error || 'помилка синхронізації', 'err');
+      return;
+    }
+    const dir = res.sync && res.sync.direction;
+    if (dir === 'pull') msg('Отримано новіші дані з Supabase', 'ok');
+    else if (dir === 'push') msg('Надіслано новіші дані в Supabase', 'ok');
+    else msg('Уже синхронно з Supabase', 'ok');
   });
 
   $('btnMigrateIn').addEventListener('click', async () => {
